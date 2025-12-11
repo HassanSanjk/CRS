@@ -1,0 +1,51 @@
+CourseID,CourseName,Credits,Semester,Instructor,ExamWeight,AssignmentWeight
+C201,Database Systems,4,Summer,Dr. Miller,69,31
+C202,Chemistry,3,Spring,Dr. Lee,79,21
+C203,History,2,Fall,Prof. Smith,52,48
+C204,Algorithms,4,Fall,Dr. Lee,43,57
+C205,Mathematics,4,Fall,Prof. Chen,53,47
+C206,Operating Systems,4,Spring,Dr. Johnson,71,29
+C207,Chemistry,4,Summer,Prof. Chen,61,39
+C208,Economics,4,Summer,Dr. Miller,47,53
+C209,Operating Systems,2,Spring,Dr. Kumar,64,36
+C210,Database Systems,2,Summer,Dr. Johnson,75,25
+C211,Mathematics,4,Summer,Dr. Kumar,45,55
+C212,Physics,3,Fall,Prof. Davis,60,40
+C213,Statistics,4,Fall,Prof. Smith,43,57
+C214,Philosophy,4,Fall,Prof. Smith,50,50
+C215,Networking,4,Fall,Prof. Smith,63,37
+C216,Software Engineering,4,Summer,Dr. Johnson,65,35
+C217,Data Structures,2,Spring,Dr. Johnson,43,57
+C218,Machine Learning,3,Fall,Prof. Davis,55,45
+C219,Computer Science,3,Summer,Prof. Chen,61,39
+C220,Biology,3,Fall,Prof. Davis,80,20
+C221,Physics,2,Spring,Dr. Johnson,63,37
+C222,Networking,2,Summer,Dr. Kumar,66,34
+C223,Literature,4,Summer,Dr. Kumar,41,59
+C224,Machine Learning,4,Spring,Prof. Smith,53,47
+C225,Statistics,3,Fall,Dr. Brown,59,41
+C226,English Composition,3,Summer,Dr. Miller,40,60
+C227,Cybersecurity,4,Spring,Dr. Brown,64,36
+C228,Operating Systems,4,Spring,Dr. Miller,56,44
+C229,Data Structures,2,Fall,Dr. Kumar,45,55
+C230,Statistics,3,Spring,Dr. Johnson,40,60
+C231,English Composition,3,Summer,Prof. Chen,72,28
+C232,Economics,4,Summer,Dr. Brown,70,30
+C233,Chemistry,4,Spring,Dr. Lee,57,43
+C234,Software Engineering,3,Fall,Dr. Lee,41,59
+C235,Chemistry,2,Fall,Prof. Davis,73,27
+C236,Software Engineering,4,Summer,Dr. Brown,74,26
+C237,Algorithms,4,Summer,Prof. Davis,58,42
+C238,English Composition,3,Summer,Dr. Kumar,41,59
+C239,Chemistry,3,Spring,Prof. Davis,63,37
+C240,Database Systems,2,Spring,Dr. Brown,51,49
+C241,Cybersecurity,3,Summer,Prof. Davis,73,27
+C242,Philosophy,4,Fall,Dr. Johnson,67,33
+C243,English Composition,3,Fall,Dr. Lee,77,23
+C244,Algorithms,3,Fall,Dr. Johnson,50,50
+C245,Artificial Intelligence,3,Summer,Dr. Miller,54,46
+C246,Software Engineering,2,Summer,Dr. Johnson,42,58
+C247,Operating Systems,3,Summer,Dr. Johnson,69,31
+C248,Chemistry,3,Summer,Prof. Smith,60,40
+C249,Mathematics,3,Fall,Dr. Miller,40,60
+C250,Chemistry,3,Spring,Dr. Johnson,53,47

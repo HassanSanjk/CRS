@@ -13,7 +13,7 @@ public class StudentRepository {
 
     // You can change this to "data/student_information.csv" if needed
     public StudentRepository() {
-        this("src/Assigment/student_information.csv");
+        this("src/Database/student_information.csv");
     }
 
     public StudentRepository(String filePath) {

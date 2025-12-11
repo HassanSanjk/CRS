@@ -13,7 +13,7 @@ public class CourseRepository {
 
     // You can change this to "course_assessment_information.csv" path as needed
     public CourseRepository() {
-        this("src/Assigment/course_assessment_information.csv");
+        this("src/Database/course_assessment_information.csv");
     }
 
     public CourseRepository(String filePath) {
