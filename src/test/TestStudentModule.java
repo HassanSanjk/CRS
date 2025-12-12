@@ -1,5 +1,6 @@
-package Eligibility_Checker;
+package test;
 
+import ui.StudentCourseManagementPanel;
 import javax.swing.*;
 
 public class TestStudentModule {

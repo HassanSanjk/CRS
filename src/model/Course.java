@@ -1,5 +1,5 @@
 // File: src/crs/studentcourse/Course.java
-package Eligibility_Checker;
+package model;
 
 import java.util.Objects;
 
