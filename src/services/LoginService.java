@@ -261,7 +261,19 @@ public class LoginService {
             saveUsers();
         }
     }
+    
+    public String recoverPassword(String username) {
+    User user = users.get(username);
+    if (user == null || !user.isActive()) return null;
 
+    // Generate a simple temporary password
+    String tempPass = "Temp" + (int)(Math.random() * 9000 + 1000);
+
+    user.setPassword(tempPass);
+    saveUsers(); // save to users.dat
+    return tempPass;
+}
+    
     // -------------------- Helpers --------------------
 
     private String clean(String s) {

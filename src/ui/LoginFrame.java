@@ -2,6 +2,7 @@ package ui;
 
 import app.MainApp;
 import services.LoginService;
+import services.EmailService;
 
 import javax.swing.*;
 import java.awt.*;
@@ -16,6 +17,7 @@ public class LoginFrame extends JFrame {
     private JPasswordField passwordField;
     private JButton loginButton;
     private JLabel statusLabel;
+    private JButton forgotButton;
 
     public LoginFrame() {
         initComponents();
@@ -71,6 +73,14 @@ public class LoginFrame extends JFrame {
         loginButton.setFocusPainted(false);
         loginButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
         formPanel.add(loginButton, gbc);
+        
+        
+        forgotButton = new JButton("Forgot Password?");
+        forgotButton.setBorderPainted(false);
+        forgotButton.setContentAreaFilled(false);
+        forgotButton.setForeground(new Color(0, 102, 204));
+        forgotButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
 
         // Bottom panel
         JPanel bottomPanel = new JPanel();
@@ -89,7 +99,10 @@ public class LoginFrame extends JFrame {
         bottomPanel.add(statusLabel);
         bottomPanel.add(Box.createVerticalStrut(5));
         bottomPanel.add(hintLabel);
+        bottomPanel.add(Box.createVerticalStrut(5));
+        bottomPanel.add(forgotButton);
 
+        
         mainPanel.add(titlePanel, BorderLayout.NORTH);
         mainPanel.add(formPanel, BorderLayout.CENTER);
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
@@ -99,6 +112,7 @@ public class LoginFrame extends JFrame {
         // Events
         loginButton.addActionListener(e -> performLogin());
         passwordField.addActionListener(e -> performLogin());
+        forgotButton.addActionListener(e -> forgotPassword());
 
         // Nice UX: clear status when typing
         usernameField.addCaretListener(e -> showStatus(" ", false));
@@ -135,6 +149,38 @@ public class LoginFrame extends JFrame {
             dispose();
         });
     }
+    
+    
+    private void forgotPassword() {
+    String username = JOptionPane.showInputDialog(this, "Enter your username:");
+    if (username == null || username.trim().isEmpty()) return;
+
+    String email = JOptionPane.showInputDialog(this, "Enter your email:");
+    if (email == null || email.trim().isEmpty()) return;
+
+    LoginService loginService = LoginService.getInstance();
+    String tempPassword = loginService.recoverPassword(username.trim());
+
+    if (tempPassword == null) {
+        JOptionPane.showMessageDialog(this,
+                "User not found or deactivated.",
+                "Recovery Failed",
+                JOptionPane.ERROR_MESSAGE);
+        return;
+    }
+
+    EmailService emailService = new EmailService();
+    boolean sent = emailService.sendPasswordResetEmail(email.trim(), username.trim(), tempPassword);
+
+    JOptionPane.showMessageDialog(this,
+            sent
+                    ? "A temporary password was sent to your email."
+                    : "Email failed. Check EmailService setup/libraries.",
+            "Password Recovery",
+            sent ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE);
+}
+
+    
 
     private void showStatus(String msg, boolean ok) {
         statusLabel.setText(msg);
