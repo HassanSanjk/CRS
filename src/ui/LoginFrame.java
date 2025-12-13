@@ -141,11 +141,4 @@ public class LoginFrame extends JFrame {
         statusLabel.setForeground(ok ? new Color(0, 153, 0) : Color.RED);
     }
 
-    public static void main(String[] args) {
-        try {
-            UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-        } catch (Exception ignored) {}
-
-        SwingUtilities.invokeLater(() -> new LoginFrame().setVisible(true));
-    }
 }
