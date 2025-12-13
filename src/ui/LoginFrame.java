@@ -69,10 +69,14 @@ public class LoginFrame extends JFrame {
 
         loginButton = new JButton("Login");
         loginButton.setFont(new Font("Arial", Font.BOLD, 14));
-        loginButton.setBackground(new Color(0, 102, 204));
+        loginButton.setBackground(new Color(0, 102, 204)); // Blue - consistent color
         loginButton.setForeground(Color.WHITE);
         loginButton.setFocusPainted(false);
         loginButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        // FIXED: Force color rendering
+        loginButton.setOpaque(true);
+        loginButton.setContentAreaFilled(true);
+        loginButton.setBorderPainted(false);
         formPanel.add(loginButton, gbc);
         
         

@@ -77,24 +77,39 @@ public class UserManagementFrame extends JFrame {
         userTable = new JTable(tableModel);
         userTable.setFont(new Font("Arial", Font.PLAIN, 14));
         userTable.setRowHeight(25);
-        userTable.getTableHeader().setFont(new Font("Arial", Font.BOLD, 14));
-        userTable.getTableHeader().setBackground(new Color(0, 102, 204));
-        userTable.getTableHeader().setForeground(Color.WHITE);
-        userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
+        // FIXED: Apply custom renderer to force header colors
+        userTable.getTableHeader().setDefaultRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+            @Override
+            public java.awt.Component getTableCellRendererComponent(
+                    javax.swing.JTable table, Object value, boolean isSelected, 
+                    boolean hasFocus, int row, int column) {
+                JLabel label = new JLabel(value.toString());
+                label.setFont(new Font("Arial", Font.BOLD, 14));
+                label.setBackground(new Color(0, 102, 204));
+                label.setForeground(Color.WHITE);
+                label.setOpaque(true);
+                label.setHorizontalAlignment(JLabel.CENTER);
+                label.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 5, 5, 5));
+                return label;
+            }
+        });
+
+userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane scrollPane = new JScrollPane(userTable);
         scrollPane.setBorder(BorderFactory.createTitledBorder("User Accounts"));
 
         // Buttons
+        // Buttons - FIXED: All buttons use consistent blue color
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
 
-        addButton = createStyledButton("Add User", new Color(34, 139, 34));
-        updateButton = createStyledButton("Update User", new Color(255, 140, 0));
-        deactivateButton = createStyledButton("Deactivate", new Color(220, 20, 60));
-        activateButton = createStyledButton("Activate", new Color(46, 139, 87));
-        resetPasswordButton = createStyledButton("Reset Password", new Color(70, 130, 180));
-        viewLogButton = createStyledButton("View Auth Log", new Color(128, 0, 128));
-        logoutButton = createStyledButton("Logout", new Color(105, 105, 105));
+        addButton = createStyledButton("Add User", new Color(0, 102, 204));
+        updateButton = createStyledButton("Update User", new Color(0, 102, 204));
+        deactivateButton = createStyledButton("Deactivate", new Color(0, 102, 204));
+        activateButton = createStyledButton("Activate", new Color(0, 102, 204));
+        resetPasswordButton = createStyledButton("Reset Password", new Color(0, 102, 204));
+        viewLogButton = createStyledButton("View Auth Log", new Color(0, 102, 204));
+        logoutButton = createStyledButton("Logout", new Color(0, 102, 204));
 
         buttonPanel.add(addButton);
         buttonPanel.add(updateButton);
@@ -128,6 +143,10 @@ public class UserManagementFrame extends JFrame {
         button.setFocusPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
         button.setPreferredSize(new Dimension(140, 35));
+        // FIXED: Force color rendering with System Look & Feel
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setBorderPainted(false);
         return button;
     }
 
