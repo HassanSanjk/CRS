@@ -63,7 +63,7 @@ public class RecoveryManagementPanel extends JPanel {
         fileService = new FileService();
         emailService = new EmailService();
 
-        students = studentRepo.getAllStudents();
+        students = studentRepo.loadAllStudents();
 
         initComponents();
         initLayout();

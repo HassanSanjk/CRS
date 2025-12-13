@@ -12,7 +12,14 @@ import ui.UserManagementFrame;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
+import repository.CourseRepository;
+import repository.GradeFileHandler;
+import repository.RegistrationRepository;
+import repository.StudentRepository;
+import services.EligibilityService;
+import ui.EligibilityPanel;
 import ui.RecoveryManagementPanel;
+import ui.StudentCourseModuleFrame;
 
 /**
  * MainApp - Main Menu / Launcher for Course Recovery System (CRS)
@@ -113,7 +120,7 @@ public class MainApp extends JFrame {
         JButton userMgmtButton = createModuleButton(
                 "User Management",
                 "Manage users, roles, and authentication",
-                new Color(34, 139, 34),
+                new Color(0, 102, 204),
                 e -> openUserManagement()
         );
 
@@ -127,14 +134,14 @@ public class MainApp extends JFrame {
         JButton recoveryButton = createModuleButton(
                 "Course Recovery",
                 "Create recovery plans + track progress",
-                new Color(255, 140, 0),
+                new Color(0, 102, 204),
                 e -> openCourseRecovery()
         );
 
         JButton reportButton = createModuleButton(
                 "Reports & PDF",
                 "Later (PDF/reporting module)",
-                new Color(128, 0, 128),
+                new Color(0, 102, 204),
                 e -> JOptionPane.showMessageDialog(this,
                         "PDF reporting is not added yet (will be implemented later).",
                         "Reports",
@@ -144,7 +151,7 @@ public class MainApp extends JFrame {
         JButton systemButton = createModuleButton(
                 "System Services",
                 "Email + logs (demo)",
-                new Color(70, 130, 180),
+                new Color(0, 102, 204),
                 e -> openSystemServices()
         );
 
@@ -154,7 +161,7 @@ public class MainApp extends JFrame {
                 new Color(220, 20, 60),
                 e -> logout()
         );
-
+        
         panel.add(userMgmtButton);
         panel.add(studentCourseButton);
         panel.add(recoveryButton);
@@ -172,6 +179,10 @@ public class MainApp extends JFrame {
         button.setForeground(Color.WHITE);
         button.setFocusPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+        // FIXED: Force background to render with System Look & Feel
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setUI(new javax.swing.plaf.basic.BasicButtonUI());
         button.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(color.darker(), 2),
                 BorderFactory.createEmptyBorder(15, 15, 15, 15)
@@ -193,10 +204,19 @@ public class MainApp extends JFrame {
         button.addActionListener(action);
 
         button.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { button.setBackground(color.brighter()); }
-            @Override public void mouseExited(MouseEvent e) { button.setBackground(color); }
+            @Override public void mouseEntered(MouseEvent e) { 
+                button.setBackground(new Color(30, 144, 255)); // Brighter blue on hover
+            }
+            @Override public void mouseExited(MouseEvent e) { 
+                button.setBackground(color); 
+            }
+            @Override public void mousePressed(MouseEvent e) { 
+                button.setBackground(new Color(0, 82, 164)); // Darker blue on press
+            }
+            @Override public void mouseReleased(MouseEvent e) { 
+                button.setBackground(new Color(30, 144, 255)); // Back to hover state
+            }
         });
-
         return button;
     }
 
@@ -240,16 +260,14 @@ public class MainApp extends JFrame {
     }
 
     private void openStudentCourse() {
-        SwingUtilities.invokeLater(() -> {
-            JFrame frame = new JFrame("Student & Course Management");
-            frame.setSize(1100, 700);
-            frame.setLocationRelativeTo(this);
-            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+    SwingUtilities.invokeLater(() -> {
+        StudentCourseModuleFrame frame = new StudentCourseModuleFrame();
+        frame.setVisible(true);
+    });
+}
 
-            frame.add(new StudentCourseManagementPanel());
-            frame.setVisible(true);
-        });
-    }
+
+
 
     private void openCourseRecovery() {
     SwingUtilities.invokeLater(() -> {
