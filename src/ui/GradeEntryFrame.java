@@ -168,7 +168,7 @@ public class GradeEntryFrame extends JFrame {
 
             JOptionPane.showMessageDialog(this,
                     "Saved 3 grades for " + studentId + " (Attempt " + attempt + ").\n" +
-                            "Written to data/grades.txt with header:\n" + GradeFileHandler.HEADER,
+                            "Written to data/grades.txt",
                     "Success", JOptionPane.INFORMATION_MESSAGE);
 
         } catch (Exception ex) {
