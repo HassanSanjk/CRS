@@ -1,5 +1,6 @@
 package ui;
 
+
 import model.Course;
 import model.Student;
 import repository.CourseRepository;

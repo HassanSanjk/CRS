@@ -1,5 +1,5 @@
-// File: src/crs/studentcourse/Course.java
 package model;
+
 
 import java.util.Objects;
 

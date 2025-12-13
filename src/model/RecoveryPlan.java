@@ -3,6 +3,7 @@ package model;
 import java.util.ArrayList;
 import java.util.List;
 
+
 /**
  * RecoveryPlan
  * Represents a course recovery plan for a student.

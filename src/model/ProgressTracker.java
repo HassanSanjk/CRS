@@ -2,6 +2,7 @@ package model;
 
 import java.util.List;
 
+
 /**
  * ProgressTracker
  * Calculates recovery progress percentage based on completed milestones.

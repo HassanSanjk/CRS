@@ -1,5 +1,6 @@
 package model;
 
+
 /**
  * Admin class
  * Demonstrates inheritance from User

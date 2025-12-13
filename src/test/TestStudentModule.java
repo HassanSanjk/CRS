@@ -1,5 +1,6 @@
 package test;
 
+
 import ui.StudentCourseManagementPanel;
 import javax.swing.*;
 
