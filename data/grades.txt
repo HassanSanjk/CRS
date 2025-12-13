@@ -1,1 +1,4 @@
 StudentID|CourseID|Attempt|Grade
+S001|C201|1|B
+S001|C202|1|C
+S001|C203|1|A-

@@ -1,25 +1,26 @@
 package app;
 
-
 import model.User;
 import services.EmailService;
 import services.FileService;
 import services.LoginService;
+import services.EligibilityService;
+
+import repository.CourseRepository;
+import repository.GradeFileHandler;
+import repository.RegistrationRepository;
+import repository.StudentRepository;
+
+import ui.EligibilityPanel;
+import ui.GenerateReportDialog;
 import ui.LoginFrame;
+import ui.RecoveryManagementPanel;
 import ui.StudentCourseManagementPanel;
 import ui.UserManagementFrame;
 
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
-import repository.CourseRepository;
-import repository.GradeFileHandler;
-import repository.RegistrationRepository;
-import repository.StudentRepository;
-import services.EligibilityService;
-import ui.EligibilityPanel;
-import ui.RecoveryManagementPanel;
-import ui.StudentCourseModuleFrame;
 
 /**
  * MainApp - Main Menu / Launcher for Course Recovery System (CRS)
@@ -48,12 +49,7 @@ public class MainApp extends JFrame {
                     "Not Logged In",
                     JOptionPane.WARNING_MESSAGE);
 
-            SwingUtilities.invokeLater(() -> {
-                LoginFrame loginFrame = new LoginFrame();
-                loginFrame.setVisible(true);
-            });
-
-            // Don't build this window
+            SwingUtilities.invokeLater(() -> new LoginFrame().setVisible(true));
             dispose();
             return;
         }
@@ -91,7 +87,9 @@ public class MainApp extends JFrame {
         subtitleLabel.setFont(new Font("Arial", Font.PLAIN, 14));
         subtitleLabel.setForeground(new Color(200, 230, 255));
 
-        JLabel userLabel = new JLabel("Logged in as: " + currentUser.getUsername() + " (" + currentUser.getRole() + ")");
+        JLabel userLabel = new JLabel(
+                "Logged in as: " + currentUser.getUsername() + " (" + currentUser.getRole() + ")"
+        );
         userLabel.setFont(new Font("Arial", Font.PLAIN, 12));
         userLabel.setForeground(Color.WHITE);
 
@@ -124,11 +122,11 @@ public class MainApp extends JFrame {
                 e -> openUserManagement()
         );
 
-        JButton studentCourseButton = createModuleButton(
-                "Student & Course",
-                "View students, courses, eligibility, enrolment",
+        JButton eligibilityButton = createModuleButton(
+                "Eligibility Check",
+                "Check CGPA & progression eligibility",
                 new Color(0, 102, 204),
-                e -> openStudentCourse()
+                e -> openEligibility()
         );
 
         JButton recoveryButton = createModuleButton(
@@ -140,17 +138,14 @@ public class MainApp extends JFrame {
 
         JButton reportButton = createModuleButton(
                 "Reports & PDF",
-                "Later (PDF/reporting module)",
+                "Generate academic performance report",
                 new Color(0, 102, 204),
-                e -> JOptionPane.showMessageDialog(this,
-                        "PDF reporting is not added yet (will be implemented later).",
-                        "Reports",
-                        JOptionPane.INFORMATION_MESSAGE)
+                e -> openGenerateReport()
         );
 
         JButton systemButton = createModuleButton(
                 "System Services",
-                "Email + logs (demo)",
+                "Email + logs (admin only)",
                 new Color(0, 102, 204),
                 e -> openSystemServices()
         );
@@ -161,9 +156,18 @@ public class MainApp extends JFrame {
                 new Color(220, 20, 60),
                 e -> logout()
         );
-        
+
+        // ---- Role-based UI enforcement ----
+        if (!"ADMIN".equals(currentUser.getRole())) {
+            userMgmtButton.setEnabled(false);
+            userMgmtButton.setToolTipText("Admin access only");
+
+            systemButton.setEnabled(false);
+            systemButton.setToolTipText("Admin access only");
+        }
+
         panel.add(userMgmtButton);
-        panel.add(studentCourseButton);
+        panel.add(eligibilityButton);
         panel.add(recoveryButton);
         panel.add(reportButton);
         panel.add(systemButton);
@@ -179,7 +183,7 @@ public class MainApp extends JFrame {
         button.setForeground(Color.WHITE);
         button.setFocusPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        // FIXED: Force background to render with System Look & Feel
+
         button.setOpaque(true);
         button.setContentAreaFilled(true);
         button.setUI(new javax.swing.plaf.basic.BasicButtonUI());
@@ -204,19 +208,56 @@ public class MainApp extends JFrame {
         button.addActionListener(action);
 
         button.addMouseListener(new MouseAdapter() {
-            @Override public void mouseEntered(MouseEvent e) { 
-                button.setBackground(new Color(30, 144, 255)); // Brighter blue on hover
+            @Override public void mouseEntered(MouseEvent e) {
+                button.setBackground(new Color(30, 144, 255));
             }
-            @Override public void mouseExited(MouseEvent e) { 
-                button.setBackground(color); 
+            @Override public void mouseExited(MouseEvent e) {
+                button.setBackground(color);
             }
-            @Override public void mousePressed(MouseEvent e) { 
-                button.setBackground(new Color(0, 82, 164)); // Darker blue on press
+            @Override public void mousePressed(MouseEvent e) {
+                button.setBackground(new Color(0, 82, 164));
             }
-            @Override public void mouseReleased(MouseEvent e) { 
-                button.setBackground(new Color(30, 144, 255)); // Back to hover state
+            @Override public void mouseReleased(MouseEvent e) {
+                button.setBackground(new Color(30, 144, 255));
             }
         });
+
+        return button;
+    }
+
+    // Same style as main menu, but simpler for dialog buttons
+    private JButton createDialogButton(String title, Color color, ActionListener action) {
+        JButton button = new JButton(title);
+        button.setBackground(color);
+        button.setForeground(Color.WHITE);
+        button.setFocusPainted(false);
+        button.setCursor(new Cursor(Cursor.HAND_CURSOR));
+
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.setUI(new javax.swing.plaf.basic.BasicButtonUI());
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(color.darker(), 2),
+                BorderFactory.createEmptyBorder(10, 20, 10, 20)
+        ));
+
+        button.addActionListener(action);
+
+        button.addMouseListener(new MouseAdapter() {
+            @Override public void mouseEntered(MouseEvent e) {
+                button.setBackground(new Color(30, 144, 255));
+            }
+            @Override public void mouseExited(MouseEvent e) {
+                button.setBackground(color);
+            }
+            @Override public void mousePressed(MouseEvent e) {
+                button.setBackground(new Color(0, 82, 164));
+            }
+            @Override public void mouseReleased(MouseEvent e) {
+                button.setBackground(new Color(30, 144, 255));
+            }
+        });
+
         return button;
     }
 
@@ -253,72 +294,104 @@ public class MainApp extends JFrame {
             return;
         }
 
+        SwingUtilities.invokeLater(() -> new UserManagementFrame().setVisible(true));
+    }
+
+    private void openEligibility() {
         SwingUtilities.invokeLater(() -> {
-            UserManagementFrame umf = new UserManagementFrame();
-            umf.setVisible(true);
+            JFrame frame = new JFrame("Eligibility Module");
+            frame.setSize(1200, 750);
+            frame.setLocationRelativeTo(this);
+            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+
+            StudentRepository studentRepo = new StudentRepository();
+            CourseRepository courseRepo = new CourseRepository();
+            GradeFileHandler gradeFile = new GradeFileHandler("data/grades.txt");
+            RegistrationRepository regRepo = new RegistrationRepository("data/registrations.txt");
+
+            EligibilityService eligibilityService =
+                    new EligibilityService(studentRepo, courseRepo, gradeFile, regRepo);
+
+            JTabbedPane tabs = new JTabbedPane();
+            tabs.addTab("Eligibility & Registration", new EligibilityPanel(eligibilityService));
+            tabs.addTab("Students & Courses", new StudentCourseManagementPanel());
+
+            frame.add(tabs);
+            frame.setVisible(true);
         });
     }
 
-    private void openStudentCourse() {
-    SwingUtilities.invokeLater(() -> {
-        StudentCourseModuleFrame frame = new StudentCourseModuleFrame();
-        frame.setVisible(true);
-    });
-}
-
-
-
+    private void openGenerateReport() {
+        SwingUtilities.invokeLater(() -> new GenerateReportDialog(this).setVisible(true));
+    }
 
     private void openCourseRecovery() {
-    SwingUtilities.invokeLater(() -> {
-        JFrame frame = new JFrame("Course Recovery Management");
-        frame.setSize(1100, 700);
-        frame.setLocationRelativeTo(this);
-        frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-
-        frame.add(new RecoveryManagementPanel());
-        frame.setVisible(true);
-    });
-}
-
+        SwingUtilities.invokeLater(() -> {
+            JFrame frame = new JFrame("Course Recovery Management");
+            frame.setSize(1100, 700);
+            frame.setLocationRelativeTo(this);
+            frame.setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
+            frame.add(new RecoveryManagementPanel());
+            frame.setVisible(true);
+        });
+    }
 
     private void openSystemServices() {
+        if (!"ADMIN".equals(currentUser.getRole())) {
+            JOptionPane.showMessageDialog(this,
+                    "Access denied. Admin only.",
+                    "Authorization Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         JDialog dialog = new JDialog(this, "System Services", true);
-        dialog.setSize(500, 350);
+        dialog.setSize(520, 360);
         dialog.setLocationRelativeTo(this);
 
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
         panel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+        panel.setBackground(new Color(240, 248, 255));
 
         JLabel titleLabel = new JLabel("System Services");
         titleLabel.setFont(new Font("Arial", Font.BOLD, 18));
         titleLabel.setAlignmentX(Component.CENTER_ALIGNMENT);
 
-        JButton testEmailButton = new JButton("Test Email (or Simulation)");
+        JButton testEmailButton = createDialogButton(
+                "Test Email",
+                new Color(0, 102, 204),
+                e -> {
+                    boolean ok = emailService.testConnection();
+                    JOptionPane.showMessageDialog(dialog,
+                            ok ? "Email test successful." : "Email test failed.",
+                            "Email Test",
+                            ok ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE);
+                }
+        );
+
+        JButton viewLogsButton = createDialogButton(
+                "View Auth Log",
+                new Color(0, 102, 204),
+                e -> viewLoginLogs()
+        );
+
+        JButton closeButton = createDialogButton(
+                "Close",
+                new Color(220, 20, 60),
+                e -> dialog.dispose()
+        );
+
         testEmailButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        testEmailButton.addActionListener(e -> {
-            boolean ok = emailService.testConnection();
-            JOptionPane.showMessageDialog(dialog,
-                    ok ? "Email test OK (may be simulation mode)." : "Email test failed.",
-                    "Email Test",
-                    ok ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE);
-        });
-
-        JButton viewLogsButton = new JButton("View Auth Log");
         viewLogsButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        viewLogsButton.addActionListener(e -> viewLoginLogs());
-
-        JButton closeButton = new JButton("Close");
         closeButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-        closeButton.addActionListener(e -> dialog.dispose());
 
         panel.add(titleLabel);
-        panel.add(Box.createVerticalStrut(20));
+        panel.add(Box.createVerticalStrut(25));
         panel.add(testEmailButton);
-        panel.add(Box.createVerticalStrut(10));
+        panel.add(Box.createVerticalStrut(12));
         panel.add(viewLogsButton);
-        panel.add(Box.createVerticalStrut(20));
+        panel.add(Box.createVerticalStrut(25));
         panel.add(closeButton);
 
         dialog.add(panel);
@@ -354,27 +427,20 @@ public class MainApp extends JFrame {
 
         if (confirm == JOptionPane.YES_OPTION) {
             loginService.logout();
-
             SwingUtilities.invokeLater(() -> {
-                LoginFrame loginFrame = new LoginFrame();
-                loginFrame.setVisible(true);
+                new LoginFrame().setVisible(true);
                 dispose();
             });
         }
     }
 
-    /**
-     * Entry point: start with LoginFrame ONLY.
-     * (MainApp should open only after successful login)
-     */
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             try {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             } catch (Exception ignored) {}
 
-            LoginFrame loginFrame = new LoginFrame();
-            loginFrame.setVisible(true);
+            new LoginFrame().setVisible(true);
         });
     }
 }

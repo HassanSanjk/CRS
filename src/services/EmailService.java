@@ -6,6 +6,12 @@ import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
 import java.util.Date;
 import java.util.Properties;
+import javax.mail.internet.MimeBodyPart;
+import javax.mail.internet.MimeMultipart;
+import javax.activation.DataHandler;
+import javax.activation.FileDataSource;
+import java.io.File;
+
 
 /**
  * EmailService - Gmail SMTP implementation
@@ -121,4 +127,63 @@ public class EmailService {
                 "If you received this email, the EmailService is working."
         );
     }
+
+    // Academic performance report with PDF attachment
+public boolean sendPerformanceReportWithAttachment(
+        String to,
+        String studentName,
+        String semester,
+        double cgpa,
+        File pdfFile
+) {
+    try {
+        Session session = Session.getInstance(props, new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(SENDER_EMAIL, APP_PASSWORD);
+            }
+        });
+
+        Message msg = new MimeMessage(session);
+        msg.setFrom(new InternetAddress(SENDER_EMAIL));
+        msg.setRecipients(Message.RecipientType.TO, InternetAddress.parse(to));
+        msg.setSubject("CRS - Academic Performance Report (" + semester + ")");
+        msg.setSentDate(new Date());
+
+        // ---- Email text body ----
+        MimeBodyPart textPart = new MimeBodyPart();
+        textPart.setText(
+                "Hello " + studentName + ",\n\n" +
+                "Please find attached your academic performance report.\n\n" +
+                "Semester: " + semester + "\n" +
+                "CGPA: " + String.format("%.2f", cgpa) + "\n\n" +
+                "CRS System"
+        );
+
+        // ---- PDF attachment ----
+        MimeBodyPart attachmentPart = new MimeBodyPart();
+        FileDataSource source = new FileDataSource(pdfFile);
+        attachmentPart.setDataHandler(new DataHandler(source));
+        attachmentPart.setFileName(pdfFile.getName());
+
+        // ---- Combine parts ----
+        Multipart multipart = new MimeMultipart();
+        multipart.addBodyPart(textPart);
+        multipart.addBodyPart(attachmentPart);
+
+        msg.setContent(multipart);
+
+        Transport.send(msg);
+        System.out.println("✅ Academic report email sent to " + to);
+        return true;
+
+    } catch (Exception e) {
+        System.err.println("❌ Failed to send report email: " + e.getMessage());
+        return false;
+    }
 }
+
+
+
+}
+

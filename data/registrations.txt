@@ -1,1 +1,2 @@
 StudentID|Registered|RegisteredAt
+S001|YES|2025-12-14T02:18:58.216377100
