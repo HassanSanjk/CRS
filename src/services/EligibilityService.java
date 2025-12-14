@@ -3,22 +3,17 @@ package services;
 import model.Course;
 import model.Grade;
 import model.Student;
-import repository.CourseRepository;
-import repository.GradeFileHandler;
-import repository.RegistrationRepository;
-import repository.StudentRepository;
+import repository.*;
 
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Eligibility Check & Enrolment:
+ * EligibilityService
+ * Rules:
  * - CGPA >= 2.0
- * - Failed courses (latest attempt per course) <= 3
- * - Registration allowed only if eligible
- *
- * This version is refactored to work with YOUR existing:
- * - StudentRepository.loadAllStudents() -> List<Student>
- * - CourseRepository.loadAllCourses() -> List<Course>
+ * - failed courses (latest attempt) <= 3
+ * - registration allowed only if eligible
  */
 public class EligibilityService {
 
@@ -27,7 +22,7 @@ public class EligibilityService {
     public static class EligibilityRow {
         public final String studentId;
         public final String name;
-        public final Double cgpa; // null => N/A
+        public final Double cgpa;
         public final int failedCourses;
         public final Status status;
         public final String reason;
@@ -60,64 +55,62 @@ public class EligibilityService {
         this.registrationRepo = registrationRepo;
     }
 
-    /** Computes eligibility for ALL students (for "list out all not eligible"). */
     public List<EligibilityRow> computeAll() {
         List<Student> students = studentRepo.loadAllStudents();
-        Map<String, Integer> creditsMap = buildCreditsMap();
+        List<Course> courses = courseRepo.loadAllCourses();
 
         List<EligibilityRow> rows = new ArrayList<>();
         for (Student s : students) {
-            rows.add(computeForStudent(s, creditsMap));
+            rows.add(computeForStudent(s, courses));
         }
         return rows;
     }
 
-    /** Registration allowed only if eligible. */
     public boolean registerIfEligible(String studentId) {
-        if (studentId == null || studentId.trim().isEmpty()) return false;
+        studentId = safe(studentId);
+        if (studentId.isEmpty()) return false;
 
         Student s = studentRepo.findById(studentId);
         if (s == null) return false;
 
-        Map<String, Integer> creditsMap = buildCreditsMap();
-        EligibilityRow r = computeForStudent(s, creditsMap);
+        List<Course> courses = courseRepo.loadAllCourses();
+        EligibilityRow row = computeForStudent(s, courses);
 
-        if (r.status == Status.ELIGIBLE) {
+        if (row.status == Status.ELIGIBLE) {
             registrationRepo.setRegistered(studentId, true);
             return true;
         }
         return false;
     }
 
-    // ---------- Internal helpers ----------
+    // ---------------- Internal ----------------
 
-    private EligibilityRow computeForStudent(Student s, Map<String, Integer> creditsMap) {
+    private EligibilityRow computeForStudent(Student s, List<Course> courses) {
         String studentId = s.getStudentId();
         String name = s.getFullName();
 
-        // Latest attempt per course (the rule your friend used)
-        Map<String, Grade> latest = gradeFile.latestByCourse(studentId);
-
         boolean reg = registrationRepo.isRegistered(studentId);
 
-        // No grades entered yet -> pending
-        if (latest.isEmpty()) {
+        // latest grades per course from file handler
+        List<Grade> latest = gradeFile.latestByCourse(studentId);
+
+        if (latest == null || latest.isEmpty()) {
             return new EligibilityRow(studentId, name, null, 0,
                     Status.PENDING_RESULTS, "Pending results (no grades entered)", reg);
         }
 
-        double totalGradePoints = 0.0;
+        double totalPoints = 0.0;
         int totalCredits = 0;
         int failed = 0;
 
-        for (Grade g : latest.values()) {
-            int credits = creditsMap.getOrDefault(g.getCourseId(), 0);
+        for (Grade g : latest) {
+            if (g == null) continue;
 
-            // If the course is unknown or credits missing, skip to avoid crashing
+            int credits = findCredits(courses, g.getCourseId());
             if (credits <= 0) continue;
 
             totalCredits += credits;
-            totalGradePoints += g.getGradePoint() * credits;
+            totalPoints += g.getGradePoint() * credits;
 
             if (g.isFailed()) failed++;
         }
@@ -127,37 +120,44 @@ public class EligibilityService {
                     Status.PENDING_RESULTS, "Missing credit hours for courses", reg);
         }
 
-        double cgpa = totalGradePoints / totalCredits;
+        double cgpa = totalPoints / totalCredits;
 
-        boolean meetsCgpa = cgpa >= 2.0;
-        boolean meetsFails = failed <= 3;
+        boolean okCgpa = cgpa >= 2.0;
+        boolean okFails = failed <= 3;
 
         Status status;
         String reason;
 
-        if (meetsCgpa && meetsFails) {
+        if (okCgpa && okFails) {
             status = Status.ELIGIBLE;
             reason = "Eligible";
         } else {
             status = Status.NOT_ELIGIBLE;
-            if (!meetsCgpa && !meetsFails) reason = "CGPA < 2.0 & fails > 3";
-            else if (!meetsCgpa) reason = "CGPA < 2.0";
+            if (!okCgpa && !okFails) reason = "CGPA < 2.0 and fails > 3";
+            else if (!okCgpa) reason = "CGPA < 2.0";
             else reason = "Fails > 3";
         }
 
         return new EligibilityRow(studentId, name, round2(cgpa), failed, status, reason, reg);
     }
 
-    private Map<String, Integer> buildCreditsMap() {
-        Map<String, Integer> map = new HashMap<>();
-        List<Course> courses = courseRepo.loadAllCourses();
+    private int findCredits(List<Course> courses, String courseId) {
+        courseId = safe(courseId);
+        if (courseId.isEmpty()) return 0;
+
         for (Course c : courses) {
-            map.put(c.getCourseId(), c.getCredits());
+            if (c.getCourseId().equalsIgnoreCase(courseId)) {
+                return c.getCredits();
+            }
         }
-        return map;
+        return 0;
     }
 
-    private Double round2(double x) {
+    private double round2(double x) {
         return Math.round(x * 100.0) / 100.0;
+    }
+
+    private String safe(String s) {
+        return (s == null) ? "" : s.trim();
     }
 }

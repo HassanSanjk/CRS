@@ -1,24 +1,22 @@
 package ui;
 
-
 import model.User;
 import services.LoginService;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.util.List;
 
 /**
- * UserManagementFrame - GUI for managing users (Admin only)
- * Features:
- * - Add user
- * - Update user
- * - Deactivate / Activate user
- * - Reset password
- * - View auth log (binary file)
+ * UserManagementFrame (Admin only)
+ * Add/Update/Activate/Deactivate/Reset + view auth log.
  */
 public class UserManagementFrame extends JFrame {
+
+    private static final Color MAIN_BLUE = new Color(0, 102, 204);
+    private static final Font TITLE_FONT = new Font("Arial", Font.BOLD, 24);
 
     private JTable userTable;
     private DefaultTableModel tableModel;
@@ -31,7 +29,7 @@ public class UserManagementFrame extends JFrame {
     public UserManagementFrame() {
         loginService = LoginService.getInstance();
 
-        // Role-based access control
+        // simple admin check
         if (!loginService.isAdmin()) {
             JOptionPane.showMessageDialog(null,
                     "Access Denied. Admin privileges required.",
@@ -54,12 +52,12 @@ public class UserManagementFrame extends JFrame {
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        // Top panel
+        // top
         JPanel topPanel = new JPanel(new BorderLayout());
 
         JLabel titleLabel = new JLabel("User Management");
-        titleLabel.setFont(new Font("Arial", Font.BOLD, 24));
-        titleLabel.setForeground(new Color(0, 102, 204));
+        titleLabel.setFont(TITLE_FONT);
+        titleLabel.setForeground(MAIN_BLUE);
 
         User currentUser = loginService.getCurrentUser();
         JLabel userInfoLabel = new JLabel("Logged in as: " + currentUser.getUsername() + " (" + currentUser.getRole() + ")");
@@ -68,48 +66,48 @@ public class UserManagementFrame extends JFrame {
         topPanel.add(titleLabel, BorderLayout.WEST);
         topPanel.add(userInfoLabel, BorderLayout.EAST);
 
-        // Table
+        // table
         String[] columns = {"Username", "Role", "Email", "Status"};
         tableModel = new DefaultTableModel(columns, 0) {
-            @Override public boolean isCellEditable(int row, int column) { return false; }
+            @Override public boolean isCellEditable(int r, int c) { return false; }
         };
 
         userTable = new JTable(tableModel);
         userTable.setFont(new Font("Arial", Font.PLAIN, 14));
         userTable.setRowHeight(25);
+        userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
-        // FIXED: Apply custom renderer to force header colors
-        userTable.getTableHeader().setDefaultRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+        // header renderer (keep same style)
+        userTable.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
             @Override
-            public java.awt.Component getTableCellRendererComponent(
-                    javax.swing.JTable table, Object value, boolean isSelected, 
+            public Component getTableCellRendererComponent(
+                    JTable table, Object value, boolean isSelected,
                     boolean hasFocus, int row, int column) {
-                JLabel label = new JLabel(value.toString());
+
+                JLabel label = new JLabel(value == null ? "" : value.toString());
                 label.setFont(new Font("Arial", Font.BOLD, 14));
-                label.setBackground(new Color(0, 102, 204));
+                label.setBackground(MAIN_BLUE);
                 label.setForeground(Color.WHITE);
                 label.setOpaque(true);
                 label.setHorizontalAlignment(JLabel.CENTER);
-                label.setBorder(javax.swing.BorderFactory.createEmptyBorder(5, 5, 5, 5));
+                label.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
                 return label;
             }
         });
 
-userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane scrollPane = new JScrollPane(userTable);
         scrollPane.setBorder(BorderFactory.createTitledBorder("User Accounts"));
 
-        // Buttons
-        // Buttons - FIXED: All buttons use consistent blue color
+        // buttons
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 10));
 
-        addButton = createStyledButton("Add User", new Color(0, 102, 204));
-        updateButton = createStyledButton("Update User", new Color(0, 102, 204));
-        deactivateButton = createStyledButton("Deactivate", new Color(0, 102, 204));
-        activateButton = createStyledButton("Activate", new Color(0, 102, 204));
-        resetPasswordButton = createStyledButton("Reset Password", new Color(0, 102, 204));
-        viewLogButton = createStyledButton("View Auth Log", new Color(0, 102, 204));
-        logoutButton = createStyledButton("Logout", new Color(0, 102, 204));
+        addButton = createBlueButton("Add User");
+        updateButton = createBlueButton("Update User");
+        deactivateButton = createBlueButton("Deactivate");
+        activateButton = createBlueButton("Activate");
+        resetPasswordButton = createBlueButton("Reset Password");
+        viewLogButton = createBlueButton("View Auth Log");
+        logoutButton = createBlueButton("Logout");
 
         buttonPanel.add(addButton);
         buttonPanel.add(updateButton);
@@ -125,7 +123,7 @@ userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         add(mainPanel);
 
-        // Events
+        // events
         addButton.addActionListener(e -> addUser());
         updateButton.addActionListener(e -> updateUser());
         deactivateButton.addActionListener(e -> setUserActive(false));
@@ -135,15 +133,16 @@ userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         logoutButton.addActionListener(e -> logout());
     }
 
-    private JButton createStyledButton(String text, Color bgColor) {
+    private JButton createBlueButton(String text) {
         JButton button = new JButton(text);
         button.setFont(new Font("Arial", Font.BOLD, 12));
-        button.setBackground(bgColor);
+        button.setBackground(MAIN_BLUE);
         button.setForeground(Color.WHITE);
         button.setFocusPainted(false);
         button.setCursor(new Cursor(Cursor.HAND_CURSOR));
         button.setPreferredSize(new Dimension(140, 35));
-        // FIXED: Force color rendering with System Look & Feel
+
+        // force color
         button.setOpaque(true);
         button.setContentAreaFilled(true);
         button.setBorderPainted(false);
@@ -152,26 +151,26 @@ userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
     private void loadUsers() {
         tableModel.setRowCount(0);
-        List<User> users = loginService.getAllUsers();
 
-        for (User user : users) {
-            String status = user.isActive() ? "Active" : "Deactivated";
+        List<User> users = loginService.getAllUsers();
+        for (User u : users) {
             tableModel.addRow(new Object[]{
-                    user.getUsername(),
-                    user.getRole(),
-                    user.getEmail(),
-                    status
+                    u.getUsername(),
+                    u.getRole(),
+                    u.getEmail(),
+                    u.isActive() ? "Active" : "Deactivated"
             });
         }
     }
+
+    // ---------- actions ----------
 
     private void addUser() {
         JPanel panel = new JPanel(new GridLayout(4, 2, 10, 10));
         JTextField usernameField = new JTextField();
         JPasswordField passwordField = new JPasswordField();
         JTextField emailField = new JTextField();
-        String[] roles = {"OFFICER", "ADMIN"};
-        JComboBox<String> roleCombo = new JComboBox<>(roles);
+        JComboBox<String> roleCombo = new JComboBox<>(new String[]{"OFFICER", "ADMIN"});
 
         panel.add(new JLabel("Username:"));
         panel.add(usernameField);
@@ -182,57 +181,36 @@ userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         panel.add(new JLabel("Role:"));
         panel.add(roleCombo);
 
-        int result = JOptionPane.showConfirmDialog(this, panel,
-                "Add New User", JOptionPane.OK_CANCEL_OPTION);
-
+        int result = JOptionPane.showConfirmDialog(this, panel, "Add New User", JOptionPane.OK_CANCEL_OPTION);
         if (result != JOptionPane.OK_OPTION) return;
 
         String username = usernameField.getText().trim();
         String password = new String(passwordField.getPassword()).trim();
         String email = emailField.getText().trim();
-        String role = (String) roleCombo.getSelectedItem();
+        String role = String.valueOf(roleCombo.getSelectedItem());
 
         if (username.isEmpty() || password.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "Username and password cannot be empty!",
-                    "Validation Error",
-                    JOptionPane.ERROR_MESSAGE);
+            err("Username and password cannot be empty!");
             return;
         }
 
-        boolean success = loginService.addUser(username, password, role, email);
-
-        if (success) {
-            JOptionPane.showMessageDialog(this,
-                    "User added successfully!",
-                    "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
+        boolean ok = loginService.addUser(username, password, role, email);
+        if (ok) {
+            msg("User added successfully!");
             loadUsers();
         } else {
-            JOptionPane.showMessageDialog(this,
-                    "Failed to add user.\n(Username may already exist OR you are not admin.)",
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
+            err("Failed to add user.\n(Username may already exist OR you are not admin.)");
         }
     }
 
     private void updateUser() {
-        int selectedRow = userTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this,
-                    "Please select a user to update.",
-                    "No Selection",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        String username = (String) tableModel.getValueAt(selectedRow, 0);
+        String username = getSelectedUsername();
+        if (username == null) return;
 
         JPanel panel = new JPanel(new GridLayout(3, 2, 10, 10));
         JPasswordField passwordField = new JPasswordField();
         JTextField emailField = new JTextField();
-        String[] roles = {"OFFICER", "ADMIN"};
-        JComboBox<String> roleCombo = new JComboBox<>(roles);
+        JComboBox<String> roleCombo = new JComboBox<>(new String[]{"OFFICER", "ADMIN"});
 
         panel.add(new JLabel("New Password (leave blank to keep):"));
         panel.add(passwordField);
@@ -248,49 +226,34 @@ userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         String password = new String(passwordField.getPassword()).trim();
         String email = emailField.getText().trim();
-        String role = (String) roleCombo.getSelectedItem();
+        String role = String.valueOf(roleCombo.getSelectedItem());
 
-        boolean success = loginService.updateUser(username, password, role, email);
-
-        if (success) {
-            JOptionPane.showMessageDialog(this,
-                    "User updated successfully!",
-                    "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
+        boolean ok = loginService.updateUser(username, password, role, email);
+        if (ok) {
+            msg("User updated successfully!");
             loadUsers();
         } else {
-            JOptionPane.showMessageDialog(this,
-                    "Failed to update user.",
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
+            err("Failed to update user.");
         }
     }
 
     private void setUserActive(boolean active) {
-        int selectedRow = userTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this,
-                    "Please select a user first.",
-                    "No Selection",
-                    JOptionPane.WARNING_MESSAGE);
+        int viewRow = userTable.getSelectedRow();
+        if (viewRow < 0) {
+            warn("Please select a user first.");
             return;
         }
 
-        String username = (String) tableModel.getValueAt(selectedRow, 0);
-        String status = (String) tableModel.getValueAt(selectedRow, 3);
+        int modelRow = userTable.convertRowIndexToModel(viewRow);
+        String username = String.valueOf(tableModel.getValueAt(modelRow, 0));
+        String status = String.valueOf(tableModel.getValueAt(modelRow, 3));
 
         if (active && "Active".equals(status)) {
-            JOptionPane.showMessageDialog(this,
-                    "User is already active.",
-                    "Info",
-                    JOptionPane.INFORMATION_MESSAGE);
+            msg("User is already active.");
             return;
         }
         if (!active && "Deactivated".equals(status)) {
-            JOptionPane.showMessageDialog(this,
-                    "User is already deactivated.",
-                    "Info",
-                    JOptionPane.INFORMATION_MESSAGE);
+            msg("User is already deactivated.");
             return;
         }
 
@@ -301,35 +264,19 @@ userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
 
         if (confirm != JOptionPane.YES_OPTION) return;
 
-        boolean success = active
-                ? loginService.activateUser(username)
-                : loginService.deactivateUser(username);
+        boolean ok = active ? loginService.activateUser(username) : loginService.deactivateUser(username);
 
-        if (success) {
-            JOptionPane.showMessageDialog(this,
-                    "User " + (active ? "activated" : "deactivated") + " successfully!",
-                    "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
+        if (ok) {
+            msg("User " + (active ? "activated" : "deactivated") + " successfully!");
             loadUsers();
         } else {
-            JOptionPane.showMessageDialog(this,
-                    "Operation failed.\n(You may be trying to deactivate your own account.)",
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
+            err("Operation failed.\n(You may be trying to deactivate your own account.)");
         }
     }
 
     private void resetPassword() {
-        int selectedRow = userTable.getSelectedRow();
-        if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this,
-                    "Please select a user to reset password.",
-                    "No Selection",
-                    JOptionPane.WARNING_MESSAGE);
-            return;
-        }
-
-        String username = (String) tableModel.getValueAt(selectedRow, 0);
+        String username = getSelectedUsername();
+        if (username == null) return;
 
         JPanel panel = new JPanel(new GridLayout(2, 2, 10, 10));
         JPasswordField newPasswordField = new JPasswordField();
@@ -349,33 +296,17 @@ userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         String confirm = new String(confirmPasswordField.getPassword()).trim();
 
         if (password.isEmpty()) {
-            JOptionPane.showMessageDialog(this,
-                    "Password cannot be empty!",
-                    "Validation Error",
-                    JOptionPane.ERROR_MESSAGE);
+            err("Password cannot be empty!");
             return;
         }
         if (!password.equals(confirm)) {
-            JOptionPane.showMessageDialog(this,
-                    "Passwords do not match!",
-                    "Validation Error",
-                    JOptionPane.ERROR_MESSAGE);
+            err("Passwords do not match!");
             return;
         }
 
-        boolean success = loginService.resetPassword(username, password);
-
-        if (success) {
-            JOptionPane.showMessageDialog(this,
-                    "Password reset successfully!",
-                    "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
-        } else {
-            JOptionPane.showMessageDialog(this,
-                    "Failed to reset password.",
-                    "Error",
-                    JOptionPane.ERROR_MESSAGE);
-        }
+        boolean ok = loginService.resetPassword(username, password);
+        if (ok) msg("Password reset successfully!");
+        else err("Failed to reset password.");
     }
 
     private void viewAuthLog() {
@@ -397,8 +328,7 @@ userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
             textArea.setText(sb.toString());
         }
 
-        JScrollPane scrollPane = new JScrollPane(textArea);
-        JOptionPane.showMessageDialog(this, scrollPane,
+        JOptionPane.showMessageDialog(this, new JScrollPane(textArea),
                 "Authentication Log (Binary File)",
                 JOptionPane.INFORMATION_MESSAGE);
     }
@@ -418,5 +348,29 @@ userTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
             loginFrame.setVisible(true);
             dispose();
         });
+    }
+
+    // ---------- small helpers ----------
+
+    private String getSelectedUsername() {
+        int viewRow = userTable.getSelectedRow();
+        if (viewRow < 0) {
+            warn("Please select a user first.");
+            return null;
+        }
+        int modelRow = userTable.convertRowIndexToModel(viewRow);
+        return String.valueOf(tableModel.getValueAt(modelRow, 0));
+    }
+
+    private void msg(String m) {
+        JOptionPane.showMessageDialog(this, m, "Info", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void warn(String m) {
+        JOptionPane.showMessageDialog(this, m, "Warning", JOptionPane.WARNING_MESSAGE);
+    }
+
+    private void err(String m) {
+        JOptionPane.showMessageDialog(this, m, "Error", JOptionPane.ERROR_MESSAGE);
     }
 }

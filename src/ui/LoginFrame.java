@@ -1,16 +1,16 @@
 package ui;
 
-
 import app.MainApp;
-import services.LoginService;
+import model.User;
 import services.EmailService;
+import services.LoginService;
 
 import javax.swing.*;
 import java.awt.*;
 
 /**
- * LoginFrame - GUI for user authentication
- * Opens MainApp after successful login.
+ * LoginFrame
+ * Simple login window for CRS.
  */
 public class LoginFrame extends JFrame {
 
@@ -20,7 +20,12 @@ public class LoginFrame extends JFrame {
     private JLabel statusLabel;
     private JButton forgotButton;
 
+    private final LoginService loginService;   // reuse singleton
+    private final EmailService emailService;   // reuse service
+
     public LoginFrame() {
+        loginService = LoginService.getInstance();
+        emailService = new EmailService();
         initComponents();
     }
 
@@ -69,23 +74,23 @@ public class LoginFrame extends JFrame {
 
         loginButton = new JButton("Login");
         loginButton.setFont(new Font("Arial", Font.BOLD, 14));
-        loginButton.setBackground(new Color(0, 102, 204)); // Blue - consistent color
+        loginButton.setBackground(new Color(0, 102, 204));
         loginButton.setForeground(Color.WHITE);
         loginButton.setFocusPainted(false);
         loginButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-        // FIXED: Force color rendering
+
+        // force color on some Look and Feels
         loginButton.setOpaque(true);
         loginButton.setContentAreaFilled(true);
         loginButton.setBorderPainted(false);
+
         formPanel.add(loginButton, gbc);
-        
-        
+
         forgotButton = new JButton("Forgot Password?");
         forgotButton.setBorderPainted(false);
         forgotButton.setContentAreaFilled(false);
         forgotButton.setForeground(new Color(0, 102, 204));
         forgotButton.setCursor(new Cursor(Cursor.HAND_CURSOR));
-
 
         // Bottom panel
         JPanel bottomPanel = new JPanel();
@@ -107,7 +112,6 @@ public class LoginFrame extends JFrame {
         bottomPanel.add(Box.createVerticalStrut(5));
         bottomPanel.add(forgotButton);
 
-        
         mainPanel.add(titlePanel, BorderLayout.NORTH);
         mainPanel.add(formPanel, BorderLayout.CENTER);
         mainPanel.add(bottomPanel, BorderLayout.SOUTH);
@@ -119,24 +123,22 @@ public class LoginFrame extends JFrame {
         passwordField.addActionListener(e -> performLogin());
         forgotButton.addActionListener(e -> forgotPassword());
 
-        // Nice UX: clear status when typing
+        // Clear status when typing
         usernameField.addCaretListener(e -> showStatus(" ", false));
         passwordField.addCaretListener(e -> showStatus(" ", false));
     }
 
     private void performLogin() {
-        String username = usernameField.getText().trim();
-        String password = new String(passwordField.getPassword()).trim();
+        String username = safe(usernameField.getText());
+        String password = safe(new String(passwordField.getPassword()));
 
         if (username.isEmpty() || password.isEmpty()) {
             showStatus("Please enter username and password", false);
             return;
         }
 
-        // Prevent double-click creating 2 windows
         loginButton.setEnabled(false);
 
-        LoginService loginService = LoginService.getInstance();
         boolean success = loginService.login(username, password);
 
         if (!success) {
@@ -154,42 +156,60 @@ public class LoginFrame extends JFrame {
             dispose();
         });
     }
-    
-    
+
     private void forgotPassword() {
-    String username = JOptionPane.showInputDialog(this, "Enter your username:");
-    if (username == null || username.trim().isEmpty()) return;
+        String username = JOptionPane.showInputDialog(this, "Enter your username:");
+        username = safe(username);
+        if (username.isEmpty()) return;
 
-    String email = JOptionPane.showInputDialog(this, "Enter your email:");
-    if (email == null || email.trim().isEmpty()) return;
+        User u = loginService.findUser(username);
+        if (u == null || !u.isActive()) {
+            JOptionPane.showMessageDialog(this,
+                    "User not found or deactivated.",
+                    "Recovery Failed",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
 
-    LoginService loginService = LoginService.getInstance();
-    String tempPassword = loginService.recoverPassword(username.trim());
+        String emailInput = JOptionPane.showInputDialog(this, "Enter your email:");
+        emailInput = safe(emailInput);
+        if (emailInput.isEmpty()) return;
 
-    if (tempPassword == null) {
+        // small safety check: if system already has email, must match
+        String savedEmail = safe(u.getEmail());
+        if (!savedEmail.isEmpty() && !savedEmail.equalsIgnoreCase(emailInput)) {
+            JOptionPane.showMessageDialog(this,
+                    "Email does not match the email on record.",
+                    "Recovery Failed",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        String tempPassword = loginService.recoverPassword(username);
+        if (tempPassword == null) {
+            JOptionPane.showMessageDialog(this,
+                    "Recovery failed. Please try again.",
+                    "Recovery Failed",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        boolean sent = emailService.sendPasswordResetEmail(emailInput, username, tempPassword);
+
         JOptionPane.showMessageDialog(this,
-                "User not found or deactivated.",
-                "Recovery Failed",
-                JOptionPane.ERROR_MESSAGE);
-        return;
+                sent
+                        ? "A temporary password was sent to your email."
+                        : "Email failed. Check EmailService setup/libraries.",
+                "Password Recovery",
+                sent ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE);
     }
-
-    EmailService emailService = new EmailService();
-    boolean sent = emailService.sendPasswordResetEmail(email.trim(), username.trim(), tempPassword);
-
-    JOptionPane.showMessageDialog(this,
-            sent
-                    ? "A temporary password was sent to your email."
-                    : "Email failed. Check EmailService setup/libraries.",
-            "Password Recovery",
-            sent ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE);
-}
-
-    
 
     private void showStatus(String msg, boolean ok) {
         statusLabel.setText(msg);
         statusLabel.setForeground(ok ? new Color(0, 153, 0) : Color.RED);
     }
 
+    private String safe(String s) {
+        return (s == null) ? "" : s.trim();
+    }
 }

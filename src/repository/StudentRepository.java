@@ -2,15 +2,17 @@ package repository;
 
 import model.Student;
 
-import java.io.*;
-import java.util.*;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Merged StudentRepository:
- * - Keeps your old API: loadAllStudents(), findById()
- * - Also supports friend's API: loadStudents() -> StudentMini list
+ * StudentRepository
+ * Reads student data from CSV.
  *
- * CSV expected (your file):
+ * Format:
  * StudentID,FirstName,LastName,Major,Year,Email
  */
 public class StudentRepository {
@@ -18,64 +20,74 @@ public class StudentRepository {
     private final String filePath;
 
     public StudentRepository() {
-        this("data/student_information.csv");
+        this.filePath = "data/student_information.csv";
     }
 
     public StudentRepository(String filePath) {
         this.filePath = filePath;
     }
 
-    // ---------- YOUR ORIGINAL API ----------
-
     public List<Student> loadAllStudents() {
         List<Student> students = new ArrayList<>();
 
         try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
             String line;
-            boolean firstLine = true;
+            boolean skipHeader = true;
 
             while ((line = br.readLine()) != null) {
                 if (line.trim().isEmpty()) continue;
 
-                // skip header
-                if (firstLine) {
-                    firstLine = false;
+                if (skipHeader) {
+                    skipHeader = false;
                     continue;
                 }
 
-                String[] p = line.split(",", -1);
-                if (p.length < 6) continue;
+                String[] parts = line.split(",", -1);
+                if (parts.length < 6) continue;
 
-                String id = p[0].trim();
-                String first = p[1].trim();
-                String last = p[2].trim();
-                String major = p[3].trim();
-                String year = p[4].trim();
-                String email = p[5].trim();
-
+                String id = safe(parts[0]);
                 if (id.isEmpty()) continue;
 
-                students.add(new Student(id, first, last, major, year, email));
+                String firstName = safe(parts[1]);
+                String lastName  = safe(parts[2]);
+                String major     = safe(parts[3]);
+                String year      = safe(parts[4]);
+                String email     = safe(parts[5]);
+
+                students.add(new Student(id, firstName, lastName, major, year, email));
             }
+
         } catch (IOException e) {
-            System.err.println("Failed to load students: " + filePath);
-            System.err.println("Reason: " + e.getMessage());
+            System.out.println("Student file read error: " + filePath);
         }
 
         return students;
     }
 
     public Student findById(String studentId) {
-        if (studentId == null || studentId.trim().isEmpty()) return null;
+        studentId = safe(studentId);
+        if (studentId.isEmpty()) return null;
 
-        String target = studentId.trim().toLowerCase();
         for (Student s : loadAllStudents()) {
-            if (s.getStudentId().toLowerCase().equals(target)) return s;
+            if (s.getStudentId().equalsIgnoreCase(studentId)) {
+                return s;
+            }
         }
         return null;
     }
 
-    // ---------- FRIEND'S API ----------
+    // show ID + full name
+    public List<StudentMini> loadStudents() {
+        List<StudentMini> list = new ArrayList<>();
+        for (Student s : loadAllStudents()) {
+            list.add(new StudentMini(s.getStudentId(), s.getFullName()));
+        }
+        return list;
+    }
+
+    private String safe(String s) {
+        return (s == null) ? "" : s.trim();
+    }
 
     public static class StudentMini {
         public final String studentId;
@@ -85,14 +97,5 @@ public class StudentRepository {
             this.studentId = studentId;
             this.name = name;
         }
-    }
-
-    /** Friend-style list: StudentID + FullName */
-    public List<StudentMini> loadStudents() {
-        List<StudentMini> out = new ArrayList<>();
-        for (Student s : loadAllStudents()) {
-            out.add(new StudentMini(s.getStudentId(), s.getFullName()));
-        }
-        return out;
     }
 }

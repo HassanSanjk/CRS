@@ -1,12 +1,15 @@
 package model;
 
 
-/**
- * Admin class
- * Demonstrates inheritance from User
- * Represents an administrator account in the system
+/*
+  * Admin
+  - Special type of User 
+  - Always has role = ADMIN 
+  - Inherits everything from User
  */
+ 
 public class Admin extends User {
+
     private static final long serialVersionUID = 1L;
 
     // Default constructor
@@ -20,17 +23,13 @@ public class Admin extends User {
         super(username, password, "ADMIN");
     }
 
-    // Constructor with email (recommended)
+    // Constructor with email
     public Admin(String username, String password, String email) {
         super(username, password, "ADMIN", email);
     }
 
     @Override
     public String toString() {
-        return "Admin{" +
-                "username='" + getUsername() + '\'' +
-                ", role='" + getRole() + '\'' +
-                ", active=" + isActive() +
-                '}';
+        return getUsername() + " (ADMIN) - " + (isActive() ? "Active" : "Deactivated");
     }
 }

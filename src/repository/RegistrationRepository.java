@@ -2,10 +2,11 @@ package repository;
 
 import java.io.*;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
- * Handles student registration after eligibility check.
+ * RegistrationRepository
  * File format:
  * StudentID|Registered|RegisteredAt
  */
@@ -15,35 +16,68 @@ public class RegistrationRepository {
     private final File file;
 
     public RegistrationRepository(String path) {
-        this.file = new File(path);
-        createFileIfMissing();
+        file = new File(path);
+        ensureFileAndHeader();
     }
 
     // ---------- Public API ----------
 
     public boolean isRegistered(String studentId) {
-        Map<String, RegistrationRow> data = loadAll();
-        RegistrationRow row = data.get(studentId);
-        return row != null && row.registered;
+        studentId = safe(studentId);
+        if (studentId.isEmpty()) return false;
+
+        List<String> lines = readAllLines();
+        for (String line : lines) {
+            if (line.trim().isEmpty() || line.equalsIgnoreCase(HEADER)) continue;
+
+            RegistrationRow row = parseLine(line);
+            if (row == null) continue;
+
+            if (row.studentId.equalsIgnoreCase(studentId)) {
+                return row.registered;
+            }
+        }
+        return false;
     }
 
     public void setRegistered(String studentId, boolean registered) {
-        Map<String, RegistrationRow> data = loadAll();
+        studentId = safe(studentId);
+        if (studentId.isEmpty()) return;
 
-        if (registered) {
-            data.put(studentId,
-                    new RegistrationRow(true, LocalDateTime.now().toString()));
-        } else {
-            data.put(studentId,
-                    new RegistrationRow(false, ""));
+        List<String> lines = readAllLines();
+        if (lines.isEmpty()) lines.add(HEADER);
+
+        boolean updated = false;
+        List<String> out = new ArrayList<>();
+        out.add(HEADER);
+
+        for (String line : lines) {
+            if (line.trim().isEmpty() || line.equalsIgnoreCase(HEADER)) continue;
+
+            RegistrationRow row = parseLine(line);
+            if (row == null) continue;
+
+            if (row.studentId.equalsIgnoreCase(studentId)) {
+                String date = registered ? LocalDateTime.now().toString() : "";
+                out.add(studentId + "|" + (registered ? "YES" : "NO") + "|" + date);
+                updated = true;
+            } else {
+                out.add(row.studentId + "|" + (row.registered ? "YES" : "NO") + "|" + row.date);
+            }
         }
 
-        saveAll(data);
+        // if student not found in file, add new row
+        if (!updated) {
+            String date = registered ? LocalDateTime.now().toString() : "";
+            out.add(studentId + "|" + (registered ? "YES" : "NO") + "|" + date);
+        }
+
+        writeAllLines(out);
     }
 
-    // ---------- Internal Helpers ----------
+    // ---------- Internal ----------
 
-    private void createFileIfMissing() {
+    private void ensureFileAndHeader() {
         try {
             if (!file.exists()) {
                 File parent = file.getParentFile();
@@ -53,8 +87,17 @@ public class RegistrationRepository {
 
             List<String> lines = readAllLines();
             if (lines.isEmpty() || !lines.get(0).equalsIgnoreCase(HEADER)) {
-                lines.add(0, HEADER);
-                writeAllLines(lines);
+                List<String> fixed = new ArrayList<>();
+                fixed.add(HEADER);
+
+                // keep old content if any (but don't duplicate header)
+                for (String s : lines) {
+                    if (s == null) continue;
+                    if (s.trim().equalsIgnoreCase(HEADER)) continue;
+                    if (!s.trim().isEmpty()) fixed.add(s);
+                }
+
+                writeAllLines(fixed);
             }
 
         } catch (IOException e) {
@@ -62,37 +105,20 @@ public class RegistrationRepository {
         }
     }
 
-    private Map<String, RegistrationRow> loadAll() {
-        Map<String, RegistrationRow> map = new HashMap<>();
+    private RegistrationRow parseLine(String line) {
+        if (line == null) return null;
 
-        for (String line : readAllLines()) {
-            if (line.trim().isEmpty() || line.equalsIgnoreCase(HEADER)) continue;
+        String[] parts = line.split("\\|", -1);
+        if (parts.length < 3) return null;
 
-            String[] parts = line.split("\\|");
-            if (parts.length < 3) continue;
+        String id = safe(parts[0]);
+        String regText = safe(parts[1]);
+        String date = safe(parts[2]);
 
-            String id = parts[0].trim();
-            boolean registered = "YES".equalsIgnoreCase(parts[1].trim());
-            String date = parts[2].trim();
+        if (id.isEmpty()) return null;
 
-            map.put(id, new RegistrationRow(registered, date));
-        }
-        return map;
-    }
-
-    private void saveAll(Map<String, RegistrationRow> data) {
-        List<String> lines = new ArrayList<>();
-        lines.add(HEADER);
-
-        List<String> ids = new ArrayList<>(data.keySet());
-        Collections.sort(ids);
-
-        for (String id : ids) {
-            RegistrationRow r = data.get(id);
-            lines.add(id + "|" + (r.registered ? "YES" : "NO") + "|" + r.date);
-        }
-
-        writeAllLines(lines);
+        boolean reg = regText.equalsIgnoreCase("YES");
+        return new RegistrationRow(id, reg, date);
     }
 
     private List<String> readAllLines() {
@@ -119,12 +145,18 @@ public class RegistrationRepository {
         }
     }
 
-    // ---------- Simple Data Holder ----------
+    private String safe(String s) {
+        return (s == null) ? "" : s.trim();
+    }
+
+    // small data holder
     private static class RegistrationRow {
+        String studentId;
         boolean registered;
         String date;
 
-        RegistrationRow(boolean registered, String date) {
+        RegistrationRow(String studentId, boolean registered, String date) {
+            this.studentId = studentId;
             this.registered = registered;
             this.date = date;
         }

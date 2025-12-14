@@ -2,19 +2,11 @@ package model;
 
 import java.util.List;
 
-
-/**
- * ProgressTracker
- * Calculates recovery progress percentage based on completed milestones.
- */
+// Calculates progress percentage for a recovery plan.
 public class ProgressTracker {
 
-    /**
-     * Calculates progress as a percentage (0–100).
-     *
-     * @param plan RecoveryPlan
-     * @return progress percentage
-     */
+
+    //Returns progress as a percentage
     public static int calculateProgress(RecoveryPlan plan) {
 
         if (plan == null) {
@@ -27,14 +19,14 @@ public class ProgressTracker {
             return 0;
         }
 
-        int completedCount = 0;
+        int completed = 0;
 
         for (Milestone m : milestones) {
-            if (m.isCompleted()) {
-                completedCount++;
+            if (m != null && m.isCompleted()) {
+                completed++;
             }
         }
 
-        return (completedCount * 100) / milestones.size();
+        return (completed * 100) / milestones.size();
     }
 }

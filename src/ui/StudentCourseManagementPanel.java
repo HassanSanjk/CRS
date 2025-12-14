@@ -9,57 +9,52 @@ import javax.swing.*;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * StudentCourseManagementPanel (CLEAN VERSION)
- * - View students and courses
- * - Show invalid course weights
- *
- * NOTE:
- * Eligibility + enrolment is handled in EligibilityPanel (friend's module),
- * not here.
+ * StudentCourseManagementPanel
+ * Shows students + course info.
  */
 public class StudentCourseManagementPanel extends JPanel {
 
     private final StudentRepository studentRepository;
     private final CourseRepository courseRepository;
 
-    private List<Student> studentList;
-    private List<Course> courseList;
+    private List<Student> studentList = new ArrayList<Student>();
+    private List<Course> courseList = new ArrayList<Course>();
 
     private JTable studentTable;
     private JTable courseTable;
 
     private JTextField txtSelectedStudent;
-
     private JButton btnShowInvalidWeights;
 
     public StudentCourseManagementPanel() {
-        this.studentRepository = new StudentRepository();
-        this.courseRepository = new CourseRepository();
+        studentRepository = new StudentRepository();
+        courseRepository = new CourseRepository();
 
-        initData();
+        loadData();
         initComponents();
         initLayout();
         initListeners();
     }
 
-    // ---------- Data Loading ----------
+    // ---------- load data ----------
 
-    private void initData() {
+    private void loadData() {
         studentList = studentRepository.loadAllStudents();
         courseList = courseRepository.loadAllCourses();
     }
 
-    // ---------- UI Components ----------
+    // ---------- UI ----------
 
     private void initComponents() {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        studentTable = new JTable(createStudentTableModel());
-        courseTable = new JTable(createCourseTableModel());
+        studentTable = new JTable(buildStudentModel());
+        courseTable = new JTable(buildCourseModel());
 
         studentTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         courseTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
@@ -70,47 +65,46 @@ public class StudentCourseManagementPanel extends JPanel {
         btnShowInvalidWeights = new JButton("Show Invalid Course Weights");
     }
 
-    private DefaultTableModel createStudentTableModel() {
-        // IMPORTANT: CSV doesn't store CGPA/failedCourses -> keep this panel clean.
-        String[] columns = {"Student ID", "First Name", "Last Name", "Major", "Year", "Email"};
+    private DefaultTableModel buildStudentModel() {
+        String[] cols = {"Student ID", "First Name", "Last Name", "Major", "Year", "Email"};
 
-        DefaultTableModel model = new DefaultTableModel(columns, 0) {
-            @Override public boolean isCellEditable(int row, int column) { return false; }
+        DefaultTableModel model = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
         };
 
         for (Student s : studentList) {
             model.addRow(new Object[]{
-                    s.getStudentId(),
-                    s.getFirstName(),
-                    s.getLastName(),
-                    s.getMajor(),
-                    s.getYear(),
-                    s.getEmail()
+                    safe(s.getStudentId()),
+                    safe(s.getFirstName()),
+                    safe(s.getLastName()),
+                    safe(s.getMajor()),
+                    safe(s.getYear()),
+                    safe(s.getEmail())
             });
         }
 
         return model;
     }
 
-    private DefaultTableModel createCourseTableModel() {
-        String[] columns = {
+    private DefaultTableModel buildCourseModel() {
+        String[] cols = {
                 "Course ID", "Course Name", "Credits",
                 "Semester", "Instructor",
                 "Exam Weight", "Assignment Weight",
                 "Total Weight", "Is Valid (100%)"
         };
 
-        DefaultTableModel model = new DefaultTableModel(columns, 0) {
-            @Override public boolean isCellEditable(int row, int column) { return false; }
+        DefaultTableModel model = new DefaultTableModel(cols, 0) {
+            @Override public boolean isCellEditable(int r, int c) { return false; }
         };
 
         for (Course c : courseList) {
             model.addRow(new Object[]{
-                    c.getCourseId(),
-                    c.getCourseName(),
+                    safe(c.getCourseId()),
+                    safe(c.getCourseName()),
                     c.getCredits(),
-                    c.getSemester(),
-                    c.getInstructor(),
+                    safe(c.getSemester()),
+                    safe(c.getInstructor()),
                     c.getExamWeight(),
                     c.getAssignmentWeight(),
                     c.getTotalWeight(),
@@ -121,10 +115,9 @@ public class StudentCourseManagementPanel extends JPanel {
         return model;
     }
 
-    // ---------- Layout ----------
+    // ---------- layout ----------
 
     private void initLayout() {
-        // Left side: Students
         JPanel leftPanel = new JPanel(new BorderLayout(5, 5));
         leftPanel.setBorder(BorderFactory.createTitledBorder("Students"));
         leftPanel.add(new JScrollPane(studentTable), BorderLayout.CENTER);
@@ -134,7 +127,6 @@ public class StudentCourseManagementPanel extends JPanel {
         selectedPanel.add(txtSelectedStudent, BorderLayout.CENTER);
         leftPanel.add(selectedPanel, BorderLayout.SOUTH);
 
-        // Right side: Courses + weight check
         JPanel rightPanel = new JPanel(new BorderLayout(5, 5));
         rightPanel.setBorder(BorderFactory.createTitledBorder("Courses"));
         rightPanel.add(new JScrollPane(courseTable), BorderLayout.CENTER);
@@ -149,27 +141,39 @@ public class StudentCourseManagementPanel extends JPanel {
         add(splitPane, BorderLayout.CENTER);
     }
 
-    // ---------- Listeners ----------
+    // ---------- listeners ----------
 
     private void initListeners() {
         studentTable.getSelectionModel().addListSelectionListener((ListSelectionEvent e) -> {
-            if (!e.getValueIsAdjusting()) {
-                onStudentSelected();
-            }
+            if (!e.getValueIsAdjusting()) onStudentSelected();
         });
 
         btnShowInvalidWeights.addActionListener(e -> onShowInvalidWeights());
     }
 
     private void onStudentSelected() {
-        int row = studentTable.getSelectedRow();
-        if (row < 0 || row >= studentList.size()) {
+        int viewRow = studentTable.getSelectedRow();
+        if (viewRow < 0) {
             txtSelectedStudent.setText("");
             return;
         }
 
-        Student s = studentList.get(row);
-        txtSelectedStudent.setText(s.toShortString());
+        // safer: read ID from table (in case table order changes later)
+        String studentId = String.valueOf(studentTable.getValueAt(viewRow, 0));
+        Student s = findStudentById(studentId);
+
+        txtSelectedStudent.setText(s == null ? "" : s.toShortString());
+    }
+
+    private Student findStudentById(String studentId) {
+        String target = safe(studentId).toLowerCase();
+
+        for (Student s : studentList) {
+            if (safe(s.getStudentId()).toLowerCase().equals(target)) {
+                return s;
+            }
+        }
+        return null;
     }
 
     private void onShowInvalidWeights() {
@@ -184,20 +188,23 @@ public class StudentCourseManagementPanel extends JPanel {
         }
 
         StringBuilder sb = new StringBuilder();
-        sb.append("Courses with invalid total weights (≠ 100%):\n\n");
+        sb.append("Courses with invalid total weights (not 100%):\n\n");
 
         for (Course c : invalid) {
-            sb.append(String.format("%s - %s (Exam: %d, Assignment: %d, Total: %d)\n",
-                    c.getCourseId(),
-                    c.getCourseName(),
-                    c.getExamWeight(),
-                    c.getAssignmentWeight(),
-                    c.getTotalWeight()));
+            sb.append(c.getCourseId()).append(" - ").append(safe(c.getCourseName()))
+                    .append(" (Exam: ").append(c.getExamWeight())
+                    .append(", Assignment: ").append(c.getAssignmentWeight())
+                    .append(", Total: ").append(c.getTotalWeight())
+                    .append(")\n");
         }
 
         JOptionPane.showMessageDialog(this,
                 sb.toString(),
                 "Invalid Course Weights",
                 JOptionPane.WARNING_MESSAGE);
+    }
+
+    private String safe(String s) {
+        return (s == null) ? "" : s.trim();
     }
 }

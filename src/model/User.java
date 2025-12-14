@@ -1,69 +1,107 @@
 package model;
 
-
 import java.io.Serializable;
 
+/*
+ * User class:
+ * - Stores login info (username/password)
+ * - Stores role (ADMIN/OFFICER)
+ * - Stores email for password recovery
+ * - Can be activated/deactivated
+ */
 public class User implements Serializable {
+
     private static final long serialVersionUID = 1L;
 
-    // Encapsulation
     private String username;
     private String password;
-    private String role;      // "ADMIN" or "OFFICER" (or "STUDENT" later)
-    private String email;     // for email notifications + password recovery
-    private boolean active;   // for deactivate feature
+    private String role;
+    private String email;
+    private boolean active;
 
-    // Default constructor
+    // Default constructor (needed for some Java file loading)
     public User() {
-        this.active = true;
+        active = true;
+        email = "";
     }
 
-    // Constructor (without email) - keeps your old calls working
+    // Old constructor (keeps older code working)
     public User(String username, String password, String role) {
         this(username, password, role, "");
     }
 
-    // Constructor (with email) - recommended
+    // Main constructor
     public User(String username, String password, String role, String email) {
-        this.username = username;
-        this.password = password;
-        this.role = role;
-        this.email = (email == null) ? "" : email.trim();
+        this.username = clean(username);
+        this.password = clean(password);
+        this.role = clean(role);
+        this.email = clean(email);
         this.active = true;
     }
 
-    // Getters/Setters
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
+    // ---------- Getters / Setters ----------
 
-    public String getPassword() { return password; }
+    public String getUsername() {
+        return username;
+    }
 
-    // Keep simple: allow updating password directly
-    public void setPassword(String password) { this.password = password; }
+    public void setUsername(String username) {
+        this.username = clean(username);
+    }
 
-    public String getRole() { return role; }
-    public void setRole(String role) { this.role = role; }
+    public String getPassword() {
+        return password;
+    }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = (email == null) ? "" : email.trim(); }
+    public void setPassword(String password) {
+        this.password = clean(password);
+    }
 
-    public boolean isActive() { return active; }
-    public void setActive(boolean active) { this.active = active; }
+    public String getRole() {
+        return role;
+    }
 
-    // Convenience methods (beginner-friendly)
-    public void deactivate() { this.active = false; }
-    public void activate() { this.active = true; }
+    public void setRole(String role) {
+        this.role = clean(role);
+    }
 
-    public boolean hasRole(String role) {
-        return role != null && this.role != null && this.role.equalsIgnoreCase(role.trim());
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = clean(email);
+    }
+
+    public boolean isActive() {
+        return active;
+    }
+
+    public void setActive(boolean active) {
+        this.active = active;
+    }
+
+    // ---------- Simple helpers ----------
+
+    public void deactivate() {
+        active = false;
+    }
+
+    public void activate() {
+        active = true;
+    }
+
+    public boolean hasRole(String checkRole) {
+        if (checkRole == null || role == null) return false;
+        return role.equalsIgnoreCase(checkRole.trim());
+    }
+
+    private String clean(String s) {
+        return (s == null) ? "" : s.trim();
     }
 
     @Override
     public String toString() {
-        return "User{" +
-                "username='" + username + '\'' +
-                ", role='" + role + '\'' +
-                ", active=" + active +
-                '}';
+        return username + " (" + role + ") - " + (active ? "Active" : "Deactivated");
     }
 }

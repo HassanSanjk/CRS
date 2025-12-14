@@ -3,19 +3,28 @@ package repository;
 import model.Grade;
 
 import java.io.*;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
+/**
+ * GradeFileHandler
+ * Handles reading and writing grades.txt
+ *
+ * Format:
+ * StudentID|CourseID|Attempt|Grade
+ */
 public class GradeFileHandler {
 
     public static final String HEADER = "StudentID|CourseID|Attempt|Grade";
-
     private final File file;
 
     public GradeFileHandler(String path) {
-        this.file = new File(path);
+        file = new File(path);
         ensureFileAndHeader();
     }
 
+    // make sure file exists and has header
     private void ensureFileAndHeader() {
         try {
             if (!file.exists()) {
@@ -23,95 +32,150 @@ public class GradeFileHandler {
                 if (parent != null) parent.mkdirs();
                 file.createNewFile();
             }
-            // ensure header exists as first line
+
             List<String> lines = readAllLinesRaw();
+
             if (lines.isEmpty()) {
                 writeAllLinesRaw(Collections.singletonList(HEADER));
-            } else {
-                String first = lines.get(0).trim();
-                if (!first.equalsIgnoreCase(HEADER)) {
-                    // prepend header if missing
-                    List<String> fixed = new ArrayList<>();
-                    fixed.add(HEADER);
-                    fixed.addAll(lines);
-                    writeAllLinesRaw(fixed);
-                }
+                return;
             }
+
+            if (!lines.get(0).trim().equalsIgnoreCase(HEADER)) {
+                List<String> fixed = new ArrayList<>();
+                fixed.add(HEADER);
+                fixed.addAll(lines);
+                writeAllLinesRaw(fixed);
+            }
+
         } catch (IOException e) {
-            throw new RuntimeException("Cannot init grades file.", e);
+            throw new RuntimeException("Failed to initialize grades file.", e);
         }
     }
 
     public List<Grade> readAll() {
-        List<Grade> out = new ArrayList<>();
+        List<Grade> grades = new ArrayList<>();
+
         for (String line : readAllLinesRaw()) {
-            String t = line.trim();
-            if (t.isEmpty()) continue;
-            if (t.equalsIgnoreCase(HEADER)) continue;
-            out.add(Grade.parseTxtLine(t));
+            String text = safe(line);
+            if (text.isEmpty() || text.equalsIgnoreCase(HEADER)) continue;
+
+            try {
+                Grade g = Grade.parseTxtLine(text);
+                if (g != null) grades.add(g);
+            } catch (Exception ignored) {
+                // skip invalid line
+            }
         }
-        return out;
+        return grades;
     }
 
-    // Upsert = if same StudentID+CourseID+Attempt exists, replace it; else add new
-    public void upsert(Grade g) {
+    //Update if same student + course + attempt exists, otherwise add new.
+    public void upsert(Grade grade) {
+        if (grade == null) return;
+
         List<String> lines = readAllLinesRaw();
         if (lines.isEmpty()) lines.add(HEADER);
 
         boolean replaced = false;
+
         for (int i = 0; i < lines.size(); i++) {
-            String t = lines.get(i).trim();
-            if (t.equalsIgnoreCase(HEADER) || t.isEmpty()) continue;
+            String text = safe(lines.get(i));
+            if (text.isEmpty() || text.equalsIgnoreCase(HEADER)) continue;
 
-            Grade existing = Grade.parseTxtLine(t);
-            if (existing.getStudentId().equals(g.getStudentId()) &&
-                existing.getCourseId().equals(g.getCourseId()) &&
-                existing.getAttempt() == g.getAttempt()) {
+            try {
+                Grade existing = Grade.parseTxtLine(text);
 
-                lines.set(i, g.toTxtLine());
-                replaced = true;
-                break;
+                if (same(existing.getStudentId(), grade.getStudentId()) &&
+                    same(existing.getCourseId(), grade.getCourseId()) &&
+                    existing.getAttempt() == grade.getAttempt()) {
+
+                    lines.set(i, grade.toTxtLine());
+                    replaced = true;
+                    break;
+                }
+
+            } catch (Exception ignored) {
             }
         }
-        if (!replaced) lines.add(g.toTxtLine());
+
+        if (!replaced) {
+            lines.add(grade.toTxtLine());
+        }
+
         writeAllLinesRaw(lines);
     }
 
     public List<Grade> getByStudent(String studentId) {
-        List<Grade> out = new ArrayList<>();
-        for (Grade g : readAll()) if (g.getStudentId().equals(studentId)) out.add(g);
-        return out;
+        studentId = safe(studentId);
+
+        List<Grade> list = new ArrayList<>();
+        for (Grade g : readAll()) {
+            if (g != null && same(g.getStudentId(), studentId)) {
+                list.add(g);
+            }
+        }
+        return list;
     }
 
-    // Latest attempt per course for eligibility/reporting use
-    public Map<String, Grade> latestByCourse(String studentId) {
-        Map<String, Grade> map = new HashMap<>();
-        for (Grade g : getByStudent(studentId)) {
-            Grade cur = map.get(g.getCourseId());
-            if (cur == null || g.getAttempt() > cur.getAttempt()) map.put(g.getCourseId(), g);
+    //Returns only the latest attempt per course (no HashMap used).
+    public List<Grade> latestByCourse(String studentId) {
+        List<Grade> all = getByStudent(studentId);
+        List<Grade> latest = new ArrayList<>();
+
+        for (Grade g : all) {
+            int index = findCourseIndex(latest, g.getCourseId());
+
+            if (index == -1) {
+                latest.add(g);
+            } else if (g.getAttempt() > latest.get(index).getAttempt()) {
+                latest.set(index, g);
+            }
         }
-        return map;
+        return latest;
+    }
+
+    private int findCourseIndex(List<Grade> list, String courseId) {
+        courseId = safe(courseId);
+
+        for (int i = 0; i < list.size(); i++) {
+            if (same(list.get(i).getCourseId(), courseId)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private List<String> readAllLinesRaw() {
         List<String> lines = new ArrayList<>();
+
         try (BufferedReader br = new BufferedReader(new FileReader(file))) {
             String s;
-            while ((s = br.readLine()) != null) lines.add(s);
+            while ((s = br.readLine()) != null) {
+                lines.add(s);
+            }
         } catch (IOException e) {
             throw new RuntimeException("Error reading grades file.", e);
         }
+
         return lines;
     }
 
     private void writeAllLinesRaw(List<String> lines) {
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(file, false))) {
-            for (String l : lines) {
-                bw.write(l);
+            for (String line : lines) {
+                bw.write(line);
                 bw.newLine();
             }
         } catch (IOException e) {
             throw new RuntimeException("Error writing grades file.", e);
         }
+    }
+
+    private String safe(String s) {
+        return (s == null) ? "" : s.trim();
+    }
+
+    private boolean same(String a, String b) {
+        return safe(a).equalsIgnoreCase(safe(b));
     }
 }

@@ -1,0 +1,3 @@
+PLAN|S005|C207
+MILESTONE|Finishing assignment|2025-12-15|true
+MILESTONE|Doing exam|2025-12-31|false

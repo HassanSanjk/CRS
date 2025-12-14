@@ -1,41 +1,39 @@
 package services;
 
-
 import model.Admin;
 import model.User;
 
 import java.io.*;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * LoginService (Singleton)
- * - Authentication (login/logout)
- * - Authorization (admin-only operations)
- * - User management (add/update/deactivate/reset)
- * - Logs login/logout timestamps in binary form (DataOutputStream)
+ * - login/logout
+ * - admin-only user management
+ * - saves users to file
+ * - logs login/logout with binary timestamp
  */
 public class LoginService {
 
     private static LoginService instance;
 
-    private Map<String, User> users;   // username -> user
+    private List<User> users;
     private User currentUser;
 
     private static final String USERS_FILE = "users.dat";
     private static final String AUTH_LOG_FILE = "auth_log.dat";
 
     private LoginService() {
-        users = new HashMap<>();
+        users = new ArrayList<>();
         loadUsers();
         ensureDefaultAdmin();
     }
 
     public static LoginService getInstance() {
-        if (instance == null) {
-            instance = new LoginService();
-        }
+        if (instance == null) instance = new LoginService();
         return instance;
     }
 
@@ -47,14 +45,10 @@ public class LoginService {
 
         if (username.isEmpty() || password.isEmpty()) return false;
 
-        User user = users.get(username);
+        User user = findUser(username);
         if (user == null) return false;
 
-        if (!user.isActive()) {
-            System.out.println("Account is deactivated.");
-            return false;
-        }
-
+        if (!user.isActive()) return false;
         if (!password.equals(user.getPassword())) return false;
 
         currentUser = user;
@@ -88,25 +82,25 @@ public class LoginService {
 
         username = clean(username);
         password = clean(password);
-        role = clean(role);
+        role = clean(role).toUpperCase();
         email = (email == null) ? "" : email.trim();
 
         if (username.isEmpty() || password.isEmpty() || role.isEmpty()) return false;
-        if (users.containsKey(username)) return false;
+        if (findUser(username) != null) return false; // prevent duplicate
 
         User newUser;
-        if ("ADMIN".equalsIgnoreCase(role)) {
+        if ("ADMIN".equals(role)) {
             newUser = new Admin(username, password, email);
         } else {
-            newUser = new User(username, password, role.toUpperCase(), email);
+            newUser = new User(username, password, role, email);
         }
 
-        users.put(username, newUser);
+        users.add(newUser);
         saveUsers();
         return true;
     }
 
-    // Backward compatible (your old calls still work)
+    // old calls still work
     public boolean addUser(String username, String password, String role) {
         return addUser(username, password, role, "");
     }
@@ -116,21 +110,20 @@ public class LoginService {
 
         username = clean(username);
         newPassword = clean(newPassword);
-        newRole = clean(newRole);
+        newRole = clean(newRole).toUpperCase();
         newEmail = (newEmail == null) ? "" : newEmail.trim();
 
-        User user = users.get(username);
+        User user = findUser(username);
         if (user == null) return false;
 
         if (!newPassword.isEmpty()) user.setPassword(newPassword);
-        if (!newRole.isEmpty()) user.setRole(newRole.toUpperCase());
+        if (!newRole.isEmpty()) user.setRole(newRole);
         if (!newEmail.isEmpty()) user.setEmail(newEmail);
 
         saveUsers();
         return true;
     }
 
-    // Backward compatible
     public boolean updateUser(String username, String newPassword, String newRole) {
         return updateUser(username, newPassword, newRole, "");
     }
@@ -139,11 +132,11 @@ public class LoginService {
         if (!isAdmin()) return false;
 
         username = clean(username);
-        User user = users.get(username);
+        User user = findUser(username);
         if (user == null) return false;
 
-        // Prevent locking yourself out by deactivating your own account (optional safety)
-        if (currentUser != null && username.equals(currentUser.getUsername())) {
+        // don't let admin deactivate themselves
+        if (currentUser != null && username.equalsIgnoreCase(currentUser.getUsername())) {
             return false;
         }
 
@@ -156,7 +149,7 @@ public class LoginService {
         if (!isAdmin()) return false;
 
         username = clean(username);
-        User user = users.get(username);
+        User user = findUser(username);
         if (user == null) return false;
 
         user.activate();
@@ -172,7 +165,7 @@ public class LoginService {
 
         if (username.isEmpty() || newPassword.isEmpty()) return false;
 
-        User user = users.get(username);
+        User user = findUser(username);
         if (user == null) return false;
 
         user.setPassword(newPassword);
@@ -180,32 +173,41 @@ public class LoginService {
         return true;
     }
 
-    public List<User> getAllUsers() {
-        return new ArrayList<>(users.values());
+    public String recoverPassword(String username) {
+        username = clean(username);
+
+        User user = findUser(username);
+        if (user == null || !user.isActive()) return null;
+
+        // simple temp password
+        String tempPass = "Temp" + (int) (Math.random() * 9000 + 1000);
+
+        user.setPassword(tempPass);
+        saveUsers();
+        return tempPass;
     }
 
-    // Helpful for login as “other user”
-    public User findUser(String username) {
-        username = clean(username);
-        return users.get(username);
+    public List<User> getAllUsers() {
+        return new ArrayList<>(users);
     }
 
     // -------------------- Binary Auth Log --------------------
 
     private void logAuthEvent(String username, String event) {
         try (DataOutputStream dos = new DataOutputStream(new FileOutputStream(AUTH_LOG_FILE, true))) {
-            long timestamp = System.currentTimeMillis(); // binary timestamp
+
+            long timestamp = System.currentTimeMillis(); // binary time
             dos.writeLong(timestamp);
             dos.writeUTF(username);
             dos.writeUTF(event);
 
-            // keep readable date (optional but helpful for demo)
+            // readable date for viewing
             String formattedDate = LocalDateTime.now()
                     .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
             dos.writeUTF(formattedDate);
 
-        } catch (Exception e) {
-            System.err.println("Error logging auth event: " + e.getMessage());
+        } catch (IOException e) {
+            System.err.println("Auth log error: " + e.getMessage());
         }
     }
 
@@ -215,17 +217,20 @@ public class LoginService {
         if (!file.exists()) return logEntries;
 
         try (DataInputStream dis = new DataInputStream(new FileInputStream(file))) {
-            while (dis.available() > 0) {
-                dis.readLong(); // timestamp (binary) - not displayed
+            while (true) {
+                dis.readLong(); // timestamp saved (binary)
                 String username = dis.readUTF();
                 String event = dis.readUTF();
                 String formattedDate = dis.readUTF();
+
                 logEntries.add(formattedDate + " | " + username + " | " + event);
             }
         } catch (EOFException ignored) {
-        } catch (Exception e) {
-            System.err.println("Error reading auth log: " + e.getMessage());
+            // end of file
+        } catch (IOException e) {
+            System.err.println("Read log error: " + e.getMessage());
         }
+
         return logEntries;
     }
 
@@ -238,44 +243,45 @@ public class LoginService {
 
         try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
             Object obj = ois.readObject();
-            if (obj instanceof Map) {
-                users = (Map<String, User>) obj;
+
+            // support older versions if needed
+            if (obj instanceof List) {
+                users = (List<User>) obj;
             }
+
         } catch (Exception e) {
-            System.err.println("Error loading users: " + e.getMessage());
-            users = new HashMap<>();
+            System.err.println("Load users error: " + e.getMessage());
+            users = new ArrayList<>();
         }
     }
 
     private void saveUsers() {
         try (ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(USERS_FILE))) {
             oos.writeObject(users);
-        } catch (Exception e) {
-            System.err.println("Error saving users: " + e.getMessage());
+        } catch (IOException e) {
+            System.err.println("Save users error: " + e.getMessage());
         }
     }
 
     private void ensureDefaultAdmin() {
-        if (!users.containsKey("admin")) {
-            Admin defaultAdmin = new Admin("admin", "admin123", "admin@crs.com");
-            users.put(defaultAdmin.getUsername(), defaultAdmin);
+        if (findUser("admin") == null) {
+            users.add(new Admin("admin", "admin123", "admin@crs.com"));
             saveUsers();
         }
     }
-    
-    public String recoverPassword(String username) {
-    User user = users.get(username);
-    if (user == null || !user.isActive()) return null;
 
-    // Generate a simple temporary password
-    String tempPass = "Temp" + (int)(Math.random() * 9000 + 1000);
-
-    user.setPassword(tempPass);
-    saveUsers(); // save to users.dat
-    return tempPass;
-}
-    
     // -------------------- Helpers --------------------
+
+    public User findUser(String username) {
+        username = clean(username);
+
+        for (User u : users) {
+            if (u.getUsername().equalsIgnoreCase(username)) {
+                return u;
+            }
+        }
+        return null;
+    }
 
     private String clean(String s) {
         return (s == null) ? "" : s.trim();

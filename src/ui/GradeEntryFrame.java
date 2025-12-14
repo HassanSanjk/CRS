@@ -2,13 +2,12 @@ package ui;
 
 import model.Course;
 import model.Grade;
-import repository.CourseRepository;
-import repository.GradeFileHandler;
-import repository.StudentRepository;
+import repository.*;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 
 public class GradeEntryFrame extends JFrame {
@@ -20,7 +19,6 @@ public class GradeEntryFrame extends JFrame {
     private JTable studentTable;
     private DefaultTableModel studentModel;
 
-    // Use wrapper items for nicer display
     private JComboBox<CourseItem> c1, c2, c3;
     private JComboBox<String> g1, g2, g3;
     private JComboBox<Integer> attemptBox;
@@ -43,24 +41,28 @@ public class GradeEntryFrame extends JFrame {
     }
 
     private void initUI() {
+        // load data from files
         List<StudentRepository.StudentMini> students = studentRepo.loadStudents();
         List<Course> courses = courseRepo.loadAllCourses();
 
-        // Left: Students table
+        // Left side: students list (table)
         studentModel = new DefaultTableModel(new Object[]{"StudentID", "Name"}, 0) {
-            @Override public boolean isCellEditable(int r, int c) { return false; }
+            @Override
+            public boolean isCellEditable(int r, int c) { return false; }
         };
+
         for (StudentRepository.StudentMini s : students) {
             studentModel.addRow(new Object[]{s.studentId, s.name});
         }
+
         studentTable = new JTable(studentModel);
         studentTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane leftScroll = new JScrollPane(studentTable);
 
-        // Build combo items from courses (display: "ID - Name")
-        CourseItem[] items = courses.stream().map(CourseItem::new).toArray(CourseItem[]::new);
+        // Build combo items from courses
+        CourseItem[] items = buildCourseItems(courses);
 
-        // Right: Grade entry form
+        // grade entry form
         JPanel right = new JPanel(new BorderLayout(10, 10));
         right.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
@@ -109,6 +111,7 @@ public class GradeEntryFrame extends JFrame {
         // Events
         studentTable.getSelectionModel().addListSelectionListener(e -> {
             if (e.getValueIsAdjusting()) return;
+
             int row = studentTable.getSelectedRow();
             if (row >= 0) {
                 String sid = String.valueOf(studentModel.getValueAt(row, 0));
@@ -124,6 +127,18 @@ public class GradeEntryFrame extends JFrame {
         });
     }
 
+    private CourseItem[] buildCourseItems(List<Course> courses) {
+        List<CourseItem> list = new ArrayList<CourseItem>();
+
+        for (Course c : courses) {
+            if (c != null && c.getCourseId() != null && !c.getCourseId().trim().isEmpty()) {
+                list.add(new CourseItem(c));
+            }
+        }
+
+        return list.toArray(new CourseItem[0]);
+    }
+
     private JComboBox<String> gradeCombo() {
         return new JComboBox<>(new String[]{"A", "A-", "B+", "B", "C+", "C", "D", "F"});
     }
@@ -136,7 +151,9 @@ public class GradeEntryFrame extends JFrame {
         }
 
         String studentId = String.valueOf(studentModel.getValueAt(row, 0)).trim();
-        int attempt = (int) attemptBox.getSelectedItem();
+
+        Integer attemptObj = (Integer) attemptBox.getSelectedItem();
+        int attempt = (attemptObj == null) ? 1 : attemptObj;
 
         CourseItem item1 = (CourseItem) c1.getSelectedItem();
         CourseItem item2 = (CourseItem) c2.getSelectedItem();
@@ -151,8 +168,8 @@ public class GradeEntryFrame extends JFrame {
         String id2 = item2.course.getCourseId();
         String id3 = item3.course.getCourseId();
 
-        // enforce 3 DISTINCT courses
-        if (id1.equals(id2) || id1.equals(id3) || id2.equals(id3)) {
+        // must be 3 different courses
+        if (same(id1, id2) || same(id1, id3) || same(id2, id3)) {
             JOptionPane.showMessageDialog(this, "Choose 3 different courses (no duplicates).", "Validation", JOptionPane.ERROR_MESSAGE);
             return;
         }
@@ -162,13 +179,13 @@ public class GradeEntryFrame extends JFrame {
         String gl3 = (String) g3.getSelectedItem();
 
         try {
+            // save/update in grades.txt
             gradeFile.upsert(new Grade(studentId, id1, attempt, gl1));
             gradeFile.upsert(new Grade(studentId, id2, attempt, gl2));
             gradeFile.upsert(new Grade(studentId, id3, attempt, gl3));
 
             JOptionPane.showMessageDialog(this,
-                    "Saved 3 grades for " + studentId + " (Attempt " + attempt + ").\n" +
-                            "Written to data/grades.txt",
+                    "Saved 3 grades for " + studentId + " (Attempt " + attempt + ").\nWritten to data/grades.txt",
                     "Success", JOptionPane.INFORMATION_MESSAGE);
 
         } catch (Exception ex) {
@@ -176,10 +193,12 @@ public class GradeEntryFrame extends JFrame {
         }
     }
 
-    /**
-     * Wrapper so JComboBox shows "CourseID - CourseName"
-     * without changing Course.toString().
-     */
+    private boolean same(String a, String b) {
+        if (a == null || b == null) return false;
+        return a.trim().equalsIgnoreCase(b.trim());
+    }
+
+    // Wrapper so combo shows "ID - Name"
     private static class CourseItem {
         private final Course course;
 
@@ -191,9 +210,8 @@ public class GradeEntryFrame extends JFrame {
         public String toString() {
             String id = course.getCourseId();
             String name = course.getCourseName();
-            if (name == null || name.trim().isEmpty()) {
-                return id;
-            }
+
+            if (name == null || name.trim().isEmpty()) return id;
             return id + " - " + name;
         }
     }

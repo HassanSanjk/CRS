@@ -1,15 +1,13 @@
 package ui;
 
-import repository.CourseRepository;
-import repository.GradeFileHandler;
-import repository.RegistrationRepository;
-import repository.StudentRepository;
+import repository.*;
 import services.EligibilityService;
 
 import javax.swing.*;
-import javax.swing.table.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -39,7 +37,7 @@ public class EligibilityPanel extends JPanel {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        // Top controls
+        // top controls
         JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
         top.add(new JLabel("Search (ID/Name):"));
         searchField = new JTextField(18);
@@ -54,7 +52,7 @@ public class EligibilityPanel extends JPanel {
 
         add(top, BorderLayout.NORTH);
 
-        // Table
+        // table
         model = new DefaultTableModel(
                 new Object[]{"StudentID", "Name", "CGPA", "Failed", "Status", "Reason", "Registered"}, 0
         ) {
@@ -70,7 +68,7 @@ public class EligibilityPanel extends JPanel {
 
         add(new JScrollPane(table), BorderLayout.CENTER);
 
-        // Bottom actions
+        // bottom buttons
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 5));
 
         enterGradesBtn = new JButton("Enter Grades");
@@ -84,7 +82,7 @@ public class EligibilityPanel extends JPanel {
 
         add(bottom, BorderLayout.SOUTH);
 
-        // Events
+        // events
         refreshBtn.addActionListener(e -> loadData());
 
         searchField.getDocument().addDocumentListener(new DocumentListener() {
@@ -112,7 +110,7 @@ public class EligibilityPanel extends JPanel {
                     r.name,
                     cgpaStr,
                     r.failedCourses,
-                    r.status.toString(),
+                    r.status.toString(),   // ELIGIBLE / NOT_ELIGIBLE / PENDING_RESULTS
                     r.reason,
                     r.registered ? "YES" : "NO"
             });
@@ -123,15 +121,17 @@ public class EligibilityPanel extends JPanel {
     }
 
     private void applyFilters() {
-        String q = searchField.getText().trim().toLowerCase();
-        String filter = (String) filterBox.getSelectedItem();
+        final String q = searchField.getText().trim().toLowerCase();
+        final String filter = (filterBox.getSelectedItem() == null)
+                ? "All"
+                : String.valueOf(filterBox.getSelectedItem());
 
         sorter.setRowFilter(new RowFilter<DefaultTableModel, Integer>() {
             @Override
             public boolean include(Entry<? extends DefaultTableModel, ? extends Integer> e) {
                 String id = e.getStringValue(0).toLowerCase();
                 String name = e.getStringValue(1).toLowerCase();
-                String status = e.getStringValue(4);
+                String status = e.getStringValue(4); // already ELIGIBLE / NOT_ELIGIBLE / PENDING_RESULTS
 
                 boolean matchesSearch = q.isEmpty() || id.contains(q) || name.contains(q);
 
@@ -165,14 +165,14 @@ public class EligibilityPanel extends JPanel {
     }
 
     private void openGradeEntry() {
-        // Create repositories (simple + beginner-friendly)
+        // simple repos for grade entry
         StudentRepository studentRepo = new StudentRepository("data/student_information.csv");
         CourseRepository courseRepo = new CourseRepository("data/course_assessment_information.csv");
         GradeFileHandler gradeFile = new GradeFileHandler("data/grades.txt");
 
         GradeEntryFrame frame = new GradeEntryFrame(studentRepo, courseRepo, gradeFile);
 
-        // Refresh eligibility after closing grade entry window
+        // refresh eligibility after closing grade entry
         frame.addWindowListener(new WindowAdapter() {
             @Override public void windowClosed(WindowEvent e) { loadData(); }
             @Override public void windowClosing(WindowEvent e) { loadData(); }
